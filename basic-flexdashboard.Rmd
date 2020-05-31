@@ -88,9 +88,10 @@ renderValueBox({
 # Fit multiple linear regression model
 fit <- lm(lifeExp ~ country + year + gdpPercap, data = gapminder)
 
-# Table of fitted values, residuals and other stats 
+# Table of fitted values, residuals and other stats
+gapminder_continent <- gapminder %>% select(country, continent)
 library(broom)
-fitted_residuals <- augment(fit)
+fitted_residuals <- augment(fit) %>% left_join(gapminder_continent, by = "country")
 
 # Clean table
 fitted_residuals_clean <- fitted_residuals %>%
@@ -102,7 +103,7 @@ fitted_residuals_clean_reactive <- reactive({
   
   fitted_residuals_clean %>%
     # input$year[1] represents the lower year, input$year[2] represents the upper year 
-    filter(year >= input$year[1], year <= input$year[2])
+    filter(continent == input$continent, year >= input$year[1], year <= input$year[2])
 
   })
 
