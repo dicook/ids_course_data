@@ -162,11 +162,6 @@ Column {data-width=500}
 
 ### Predictions
 
-<!-- **Limitations:**  -->
-
-<!-- * **Continent and country inputs should be conditional on each other. Select a valid combination.** -->
-<!-- * **Model of life expectancy is only intended for dashboard learning purposes.** -->
-
 ```{r}
 # Inputs for prediction
 selectInput(inputId = "country_pred", label = "Country", choices = levels(gapminder$country))
