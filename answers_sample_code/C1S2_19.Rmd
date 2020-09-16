@@ -1,0 +1,39 @@
+---
+title: "Course 1 Section 2.19 - Mutate"
+author: "Jiaying Wu"
+date: "14/09/2020"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      message = FALSE)
+```
+
+```{r library}
+library(tidyverse)
+library(here)
+tb_long <- read_rds(here("data","tb_long.rds"))
+tb_long
+```
+
+### Q1: Recode the sex variable to have values “male” and “female” instead of “m” and “f” (hint: use if_else)
+
+```{r recode}
+tb_long <- tb_long %>% mutate(sex = if_else(sex == "m", "male", "female"))
+tb_long
+```
+
+### Q2: Use spread to put the count values into the columns male and female, then create a new variable called diff which contains the difference between the male and female counts.
+
+```{r spread}
+tb_wide <- tb_long %>%
+  spread(key = "sex", value = "count") %>%
+  mutate(diff = female - male)
+
+tb_wide
+```
+
+

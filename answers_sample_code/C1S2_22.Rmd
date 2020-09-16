@@ -1,0 +1,40 @@
+---
+title: 'Course 1 Section 2.22 - Arrange: ordering rows'
+author: "Jiaying Wu"
+date: "15/09/2020"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      message = FALSE)
+```
+
+```{r tb_long}
+library(tidyverse)
+library(here)
+tb_long <- read_rds(here("data", "tb_long.rds"))
+tb_long
+```
+
+
+
+### Q1: sort the results in descending order, for example, alphabetically
+
+```{r}
+arrange(tb_long, desc(country))
+```
+
+### Q2: arrange the dataset by the first 10 countries.
+
+```{r}
+tb_long %>%
+  group_by(country) %>%
+  summarise(sum = sum(count, na.rm = TRUE)) %>%
+  arrange(desc(sum)) %>%
+  top_n(10)
+```
+
+

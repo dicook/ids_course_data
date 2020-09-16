@@ -1,0 +1,27 @@
+---
+title: "Course 1 Section 2.3 - Save Object"
+author: "Jiaying Wu"
+date: "14/09/2020"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      message = FALSE)
+```
+
+```{r tb_au}
+library(tidyverse)
+library(here)
+tb <- read_rds(here("data", "tb_tidy.rds"))
+tb_au <- filter(tb, country == "Australia")
+tb_au
+```
+
+### Export the object as csv file
+
+```{r save_object}
+write_csv(tb_au, here("data", "tb_au.csv"))
+```

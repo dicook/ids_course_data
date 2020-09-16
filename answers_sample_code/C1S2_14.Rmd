@@ -1,0 +1,63 @@
+---
+title: "Course 1 Section 2.14 - Tidy data"
+author: "Jiaying Wu"
+date: "14/09/2020"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      message = FALSE)
+```
+
+```{r library}
+library(tidyverse)
+```
+
+```{r load_data}
+kb <- read_csv("https://raw.githubusercontent.com/datascienceprogram/ids_course_data/master/koala_bilby.csv")
+kb
+```
+
+### Exercise 1
+
+Once you’ve read the data into your R session, gather the data into long form, naming the two new variables, label and count.
+
+```{r kb_long}
+kb_long <- gather(kb, key = "label", value = "count", -ID)
+kb_long
+```
+
+### Exercise 2
+
+Separate the labels into two new variables: animal and state.
+
+```{r kb_separate}
+kb_separate <- separate(kb_long, 
+                        col = label, 
+                        into = c("animal", "state"),
+                        sep = "_")
+kb_separate
+```
+
+### Exercise 3
+
+Spread the long form data into wide form, where the columns are the states.
+
+```{r kb_wide}
+kb_wide <- spread(kb_separate, key = "state", value = "count")
+kb_wide
+```
+
+### Exercise 4
+
+Spread the long form data into wide form, where the columns are the animals.
+
+```{r kb_animal}
+kb_animal <- spread(kb_separate, key = "animal", value = "count")
+kb_animal
+```
+
+
