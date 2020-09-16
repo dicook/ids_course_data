@@ -1,0 +1,92 @@
+---
+title: "Course 1 Section 2.24 - Pedestrian activity around the City of Melbourne 2"
+author: "Jiaying Wu"
+date: "15/09/2020"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      message = FALSE)
+```
+
+```{r library}
+library(tidyverse)
+library(here)
+```
+
+### Step 1: Create a new R Markdown and read in the data
+
+```{r ped}
+ped <- read_csv(here("data", "melb_walk.csv"))
+ped
+```
+
+### Step 2: Count the sensors, and more
+
+#### Q1: Use a wrangling verb, to count the number of sensors. Do all the sensors have the same number of measurements?
+
+```{r S2Q1}
+num_sensor <- ped %>%
+  group_by(Sensor) %>%
+  summarise(num_sensor = n())
+
+num_sensor
+```
+
+```{r check_sensor}
+unique(num_sensor$num_sensor)
+```
+
+All the sensors have the same number of measurements.
+
+#### Q2: For each sensor, compute the total count for January. Which sensor had the largest count? Which sensor had the smallest count?
+
+```{r count_by_sensor}
+count_by_sensor <- ped %>%
+  group_by(Sensor) %>%
+  summarise(sum = sum(Count, na.rm = TRUE)) %>%
+  arrange(sum)
+```
+
+```{r smallest}
+head(count_by_sensor)
+```
+
+```{r largest}
+tail(count_by_sensor)
+```
+
+### Q3: For each sensor, compute the total number of missing counts. Which sensor had the most missing counts? Why might this be?
+
+```{r missing_count}
+ped %>%
+  group_by(Sensor) %>%
+  select(Count) %>%
+  summarise_all(funs(sum(is.na(.)))) %>%
+  rename(na_count = "Count") %>%
+  arrange(desc(na_count))
+```
+
+#### Q4: Create a new table that contains the counts for the Melbourne Central and State Library sensors, then use a tidying verb to create two new columns that contain their counts.
+
+```{r two_station}
+ped %>%
+  filter(Sensor %in% c("Melbourne Central", "State Library")) %>%
+  spread(key = Sensor, value = Count)
+```
+
+#### Q5: Create the following 100 percent chart to compare the foot traffic at Melbourne Central and the State Library during different hours of the day. Explain why the first 8 days of January appear this way.
+
+```{r 100_bar, fig.height = 6, fig.width= 10}
+ped %>%
+  filter(Sensor %in% c("Melbourne Central", "State Library")) %>%
+  ggplot(aes(x = Time , y = Count, fill = Sensor)) +
+  geom_bar(stat = "identity", position = "fill") +
+  facet_wrap(~Date, ncol = 7)
+```
+
+
+

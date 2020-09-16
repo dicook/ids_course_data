@@ -1,0 +1,34 @@
+---
+title: 'Course 1 Section 2.20 Summarise: compute summaries'
+author: "Jiaying Wu"
+date: "14/09/2020"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      message = FALSE)
+```
+
+### Using summarise compute the:
+
+- number of observations in the data (hint use n()).
+
+- number of observations that have missing counts (hint use is.na).
+
+- proportion of observations that have missing counts.
+
+```{r}
+library(tidyverse)
+library(here)
+tb_long <- read_rds(here("data", "tb_long.rds"))
+```
+
+```{r}
+summarise(tb_long,
+          num_obs = n(),
+          num_na = sum(is.na(count)),
+          prop_na = num_na / num_obs)
+```

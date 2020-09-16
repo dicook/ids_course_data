@@ -1,0 +1,63 @@
+---
+title: "Course 1 Section 2.17 - Filter Data"
+author: "Jiaying Wu"
+date: "14/09/2020"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      message = FALSE)
+```
+
+```{r library}
+library(tidyverse)
+library(here)
+tb_long <- read_rds(here("data","tb_long.rds"))
+tb_long
+```
+
+### Use the verb filter to select TB cases only from:
+
+#### 1.the year 2012
+
+```{r tb_2012}
+filter(tb_long, year == "2012")
+```
+
+#### 2.the years 2013 - 2018
+
+```{r tb_2013_2018}
+filter(tb_long, year >= "2013", year <= "2018")
+```
+
+#### 3.countries in North America
+
+```{r tb_north}
+tb_north <- filter(tb_long, iso3 %in% c("AIA", "ATG", "ABW", "BHS", "BRB", "BLZ", "BMU", "BES", "VGB", "CAN", "VYM", "CRI", "CUB", "CUW", "DMA", "DOM", "SLV", "GRL", "GRD", "GLP", "GTM", "HTI", "HND", "JAM", "MTQ", "MEX", "SPM", "MSR", "ANT", "KNA", "NIC", "PAN", "PRI", "BES", "SXM", "KNA", "LCA", "SPM", "VCT", "TTO", "TCA", "USA", "VIR"))
+
+tb_north
+```
+
+#### 4.countries in North America but not ages 0-4, 0-14 or u.
+
+```{r check_age_group}
+unique(factor(tb_north$age_group))
+```
+
+```{r tb_north_age}
+filter(tb_north, !age_group %in% c("04", "014", "u"))
+```
+
+
+
+
+
+
+
+
+
+
+

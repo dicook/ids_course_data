@@ -1,0 +1,81 @@
+---
+title: "Course 1 Section 2.8 - Pedestrian activity around the City of Melbourne"
+author: "Jiaying Wu"
+date: "14/09/2020"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      message =  FALSE)
+```
+
+Thank for Noel Kaso sharing his work in Course 1 Section 2.8, this Rmd reference from: https://github.com/nkasono/data
+
+### Step 1: Create a new R Markdown and read in the data
+
+#### Load the tidyverse package in the setup chunk.
+
+```{r library}
+library(tidyverse)
+library(here)
+```
+
+#### Read in the pedestrian data using read_csv and give it a name (here we’ve named the data ped).
+
+```{r ped}
+ped <- read_csv(here("data", "melb_walk.csv"))
+ped
+```
+
+### Step 2: Plot a bar chart
+
+```{r state_lib}
+state_lib <- filter(ped, Date == "2019-01-01", Sensor == "State Library")
+state_lib
+```
+
+```{r bar_chart}
+bar_state_lib <- 
+  ggplot(state_lib, aes(x = Time, y = Count, fill = Count)) +
+  geom_bar(stat = "Identity") +
+  labs(x = "Hour of Day", y = "Count of Walkers", title = "State Library Pedestrians in Each Hour on 1st Jan 2019") +
+  theme_dark()
+bar_state_lib
+```
+
+### Step 3: Plot a side-by-side boxplot
+
+```{r state_lib_all}
+state_lib <- filter(ped, Sensor == "State Library")
+state_lib
+```
+
+
+```{r sbs_box_plot}
+state_lib_boxsbs <- 
+  ggplot(state_lib, aes(x = Time, y = Count, group = Time)) +
+  geom_boxplot() +
+  geom_jitter(alpha = 0.3, size = 0.5) +
+  xlab("Time of Day")
+
+state_lib_boxsbs
+```
+
+###Step 4: Extract the counts for Melbourne Central
+
+```{r melb_central}
+melb_central <- filter(ped, 
+                       Sensor %in% c("Melbourne Central", "State Library"), 
+                       !is.na(Count), 
+                       Count < 5000)
+
+melb_central_boxsbs <- 
+  ggplot(melb_central, aes(x = Time, y = Count, group = Time)) +
+  geom_boxplot() +
+  facet_grid(Sensor~.)
+
+melb_central_boxsbs
+```
