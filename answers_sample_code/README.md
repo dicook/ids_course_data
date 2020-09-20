@@ -21,3 +21,15 @@ Sample Answer Code for Data Science: Data-Driven Decision Making
 -   `C1S2_22.Rmd`: Sample answer code for Course 1 Step 2.22: `ARRANGE: ORDERING ROWS`
 
 -   `C1S2_24.Rmd`: Sample answer code for Course 1 Step 2.24: `YOUR TURN`
+
+#### Week 3: HARVESTING DATA, VISUAL ANALYTICS, AND THE ROLE OF DATA VISUALISATION
+
+-   `C1S3_04.Rmd`: Sample answer code for Course 1 Step 3.4: `AESTHETICS`
+
+-   `C1S3_11.Rmd`: Sample answer code for Course 1 Step 3.11: `READING AND WRITING PROPRIETARY FORMATS`
+
+-   `C1S3_12.Rmd`: Sample answer code for Course 1 Step 3.12: `WEB SCRAPING`
+
+-   `C1S3_13.Rmd`: Sample answer code for Course 1 Step 3.13: `READING AND WRITING JSON FILES`
+
+-   `C1S3_15.Rmd`: Sample answer code for Course 1 Step 3.15: `YOUR TURN`

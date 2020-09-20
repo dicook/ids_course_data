@@ -1,0 +1,61 @@
+---
+title: "Course 1 Section 3.12 - Web scraping"
+author: "Jiaying Wu"
+date: "18/09/2020"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      message = FALSE,
+                      fig.width = 4,
+                      fig.height = 4,
+                      fig.align = "center")
+```
+
+```{r library}
+library(tidyverse)
+library(rvest)
+```
+
+```{r data}
+site <- "http://stats.espncricinfo.com/ci/engine/stats/index.html?class=10;page=1;team=289;template=results;type=batting;wrappertype=print"
+raw_html <- read_html(site)
+tables <- html_table(raw_html, fill = TRUE)
+ausw_t20 <- tables[[3]]
+glimpse(ausw_t20)
+```
+
+#### Modification 1: Remove empty characters
+
+```{r remove_empty_hs}
+ausw_t20$HS <- str_replace(ausw_t20$HS, "\\*", "")
+```
+
+#### Modification 2: Make the data long form
+
+```{r data_long}
+ausw_t20 <- gather(ausw_t20, key = "statistic", value = "value", -Player, -Span)
+```
+
+#### Modification 3: Change the value column
+
+```{r convert_data_type}
+ausw_t20$value <- str_replace(ausw_t20$value, "-", "")
+ausw_t20$value <- as.numeric(ausw_t20$value)
+```
+
+#### Modification 4: Spread the data set
+
+```{r data_wide}
+ausw_t20 <- spread(ausw_t20, key = "statistic", value = "value")
+```
+
+#### Modification 5: Plot the batting average
+
+```{r scatter_plot}
+ggplot(ausw_t20, aes(x = Ave, y = SR))+
+  geom_point()
+```

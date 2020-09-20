@@ -1,0 +1,86 @@
+---
+title: "Course 1 Section 3.15 - Your turn"
+author: "Jiaying Wu"
+date: "20/09/2020"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      message = FALSE,
+                      fig.width = 6,
+                      fig.height = 4,
+                      fig.align = "center")
+```
+
+```{r eval=FALSE}
+devtools::install_github("ropenscilabs/cricketdata")
+```
+
+```{r library}
+library(tidyverse)
+library(rvest)
+```
+
+```{r odi}
+odi_url <- "https://www.icc-cricket.com/rankings/mens/team-rankings/odi"
+odi_page <- read_html(odi_url)
+odi <- html_table(odi_page, fill = TRUE)[[1]]
+
+# remove the empty space in varaible name
+names(odi) <- str_replace(names(odi), "\n.*", "")
+odi <- odi %>%
+  as_tibble() %>%
+  mutate(Team = str_replace(Team, "\n.*", ""))
+odi
+```
+
+```{r t20i}
+t20_url <- "https://www.icc-cricket.com/rankings/mens/team-rankings/t20i"
+t20i_page <- read_html(t20_url)
+t20i <- html_table(t20i_page, fill = TRUE)[[1]]
+
+# remove the empty space in varaible name
+names(t20i) <- str_replace(names(t20i), "\n.*", "")
+t20i <- t20i %>%
+  as_tibble() %>%
+  mutate(Team = str_replace(Team, "\n.*", ""))
+t20i
+```
+
+
+#### For teams that are in both ODI and T20, make a plot comparing their ratings.
+
+```{r ratings}
+inner_join(odi, t20i, by = c("Team")) %>%
+  rename(odi_rating = Rating.x,
+         t20i_rating = Rating.y) %>%
+  gather(key = "Format",
+         value = "rating",
+         odi_rating, t20i_rating) %>%
+  ggplot(aes(x = Team, y = rating, fill = Format)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  coord_flip()
+```
+
+
+#### What countries do better in T20 relative to their ODI performance?
+
+```{r relative}
+inner_join(odi, t20i, by = c("Team")) %>%
+  rename(odi_rating = Rating.x,
+         t20i_rating = Rating.y) %>%
+  gather(key = "Format",
+         value = "rating",
+         odi_rating, t20i_rating) %>%
+  ggplot(aes(x = Team, y = rating, fill = Format)) +
+  geom_bar(stat = "identity", position = "fill") +
+  coord_flip()
+```
+
+
+
+
+

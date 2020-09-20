@@ -1,0 +1,120 @@
+---
+title: "Course 1 Section 3.11 - Reading and writing proprietary formats"
+author: "Jiaying Wu"
+date: "20/09/2020"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      message = FALSE,
+                      fig.width = 4,
+                      fig.height = 4,
+                      fig.align = "center")
+```
+
+```{r library}
+library(tidyverse)
+library(readxl)
+library(lubridate)
+```
+
+```{r data_list}
+# note ".." used becase the my rmd file was not store beside my R  project 
+path <- "../data/tas_rentals"
+xlsx_files <- list.files(path)
+xlsx_files
+```
+
+```{r import_data}
+rentals <- map_dfr(str_c(path, "/", xlsx_files), read_xlsx)
+rentals 
+```
+
+#### Wrangling task 1: Rename the columns
+
+```{r rename}
+rentals <- rename(rentals, 
+                  bond_lodgement_date = `Bond Lodgement date (DD/MM/YYYY)`)
+```
+
+#### Wrangling task 2: Create new columns
+
+```{r new_columns}
+rentals <- rentals %>%
+  mutate(month = month(bond_lodgement_date),
+         year = year(bond_lodgement_date))
+rentals
+```
+
+#### Wrangling task 3: Remove observations
+
+```{r remove}
+rentals <- rentals %>%
+  filter(`No of Bedrooms` >= 1 & `No of Bedrooms` <= 5)
+rentals
+```
+
+#### Wrangling task 4: Compute average weekly rent
+
+```{r avg_postcode}
+avg_postcode <- rentals %>%
+  group_by(Postcode) %>%
+  summarise(Average_Weekly_Rent = mean(`Weekly Rent`))
+
+avg_postcode
+```
+
+```{r avg_month}
+avg_month <- rentals %>%
+  group_by(month) %>%
+  summarise(Average_Weekly_Rent = mean(`Weekly Rent`))
+
+avg_month
+```
+
+```{r avg_year}
+avg_year <- rentals %>%
+  group_by(year) %>%
+  summarise(Average_Weekly_Rent = mean(`Weekly Rent`))
+
+avg_year
+```
+
+```{r avg_bed}
+avg_bed <- rentals %>%
+  group_by(`No of Bedrooms`) %>%
+  summarise(Average_Weekly_Rent = mean(`Weekly Rent`))
+
+avg_bed
+```
+
+```{r time}
+rentals <- rentals %>%
+  mutate(time = dmy(paste("01", month, year, sep = "-")))
+rentals
+```
+
+```{r all_time}
+rentals %>%
+  ggplot(aes(x = time, y = `Weekly Rent`, group = Postcode)) +
+  geom_line(alpha = 0.3)
+```
+
+
+#### Facet your plot
+
+```{r facet_plot, fig.height=6, fig.width=9}
+rentals %>%
+  ggplot(aes(x = time, y = `Weekly Rent`, group = Postcode)) +
+  geom_line(alpha = 0.3) +
+  facet_wrap(~`No of Bedrooms`)
+```
+
+
+
+
+
+

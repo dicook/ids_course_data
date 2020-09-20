@@ -1,0 +1,62 @@
+---
+title: "Course 1 Section 3.4 - Aesthetics"
+author: "Jiaying Wu"
+date: "20/09/2020"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      message = FALSE,
+                      fig.width = 4,
+                      fig.height = 4,
+                      fig.align = "center")
+```
+
+```{r library}
+library(tidyverse)
+```
+
+```{r data}
+grad_programs <- read_csv("https://raw.githubusercontent.com/datascienceprogram/ids_course_data/master/graduate-programs.csv")
+grad_programs
+```
+
+#### Is there much variation in the median completion time of a graduate program? What about by subject?
+
+```{r}
+grad_programs %>%
+  ggplot(aes(x = subject, y = MedianTimetoDegree)) +
+  geom_boxplot()+
+  ggtitle("Median completion time by subject")
+```
+
+
+#### Does the performance of an institution (measured by the number of citations or publications ) appear to have an influence on completion time? Is this different if considered by subject?
+
+
+```{r publications, fig.width= 8, fig.height=8}
+# first arrange the data by count and exclude any schools that have fewer than five programs
+counts <- count(grad_programs, Inst, sort = TRUE)
+counts <- filter(counts, n >= 5)
+list_top_inst <- pull(counts, Inst)
+top_inst = filter(grad_programs, Inst %in% list_top_inst)
+
+# Publications with subjects as colours
+ggplot(data = top_inst, aes(x = AvNumPubs,y = MedianTimetoDegree, colour = subject)) +
+  geom_point() +
+  facet_wrap(Inst~., nrow = 4) +
+  theme(legend.position = c(0.8, 0.1))+
+  ggtitle("Performance of an institution by publications")
+```
+
+```{r citations, fig.width=8, fig.height=15}
+# Citations with subjects as colours
+ggplot(data = top_inst, aes(x = AvNumCits, y = MedianTimetoDegree, colour = subject)) +
+  geom_point() +
+  facet_grid(Inst ~ subject)+
+  theme(legend.position = "bottom")+
+  ggtitle("Performance of an institution by citations")
+```

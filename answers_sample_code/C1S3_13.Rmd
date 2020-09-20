@@ -1,0 +1,83 @@
+---
+title: "Course 1 Section 3.13 - Reading and writing JSON files"
+author: "Jiaying Wu"
+date: "20/09/2020"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      message = FALSE,
+                      fig.width = 4,
+                      fig.height = 3,
+                      fig.align = "center")
+```
+
+```{r library}
+library(tidyverse)
+library(jsonlite)
+library(lubridate)
+
+Sys.setenv("OER_KEY" = "your-key-here")
+```
+
+```{r data}
+makeRequest <- function(day)  {
+  req <- str_glue(
+    "https://openexchangerates.org/api/historical/{day}.json?app_id={key}",
+    day = day, key = Sys.getenv("OER_KEY")
+  ) 
+}
+res <- fromJSON(makeRequest("2019-08-15"))
+
+rates <- as_tibble(res$rates) %>% 
+  mutate(date = as.POSIXct(res$timestamp, origin = "1970-01-01")) %>% 
+  gather(key = "currency", value = "value", -date)
+
+getDay <- function(day) {
+  url <- makeRequest(day)
+  res <- fromJSON(url)
+  rates <- as_tibble(res$rates)  
+  rates <- mutate(rates, 
+                  date = as.POSIXct(res$timestamp, origin = "1970-01-01")) 
+  rates <- gather(rates, key = "currency", value = "value", -date)
+  rates
+}
+rates <- getDay("2019-08-15")
+
+august <- seq(as_date("2018-08-01"), as_date("2018-08-31"), by = 1)
+aug_rates <- map_dfr(august, getDay)
+
+aug_rates
+```
+
+#### Using filter(), restrict the data to the following USD exchange rates for currencies: AUD, NZD, JPY, EUR, GBP. What information is displayed in your plot?
+
+```{r filter}
+five_currency <- aug_rates %>%
+  filter(currency %in% c("AUD", "NZD", "JPY", "EUR", "GBP"))
+five_currency
+```
+
+
+#### Create a line plot to compare the USD exchange rates for AUD, EUR, GBP, NZD, JPY over the month.
+
+```{r all_line}
+five_currency %>%
+  ggplot(aes(x = date, y = value, group = currency, color = currency)) +
+  geom_line() +
+  scale_y_log10()
+```
+
+#### Create a facetted line plot to compare the USD exchange rates for AUD, EUR, GBP, NZD, JPY over the month.
+
+```{r facet_line, fig.width=10, fig.height=3}
+five_currency %>%
+  ggplot(aes(x = date, y = value, color = currency)) +
+  geom_line() +
+  scale_y_log10() +
+  facet_wrap(~currency, nrow = 1)+
+  theme(legend.position = "bottom")
+```
