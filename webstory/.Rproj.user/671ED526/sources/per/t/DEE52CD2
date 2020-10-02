@@ -1,0 +1,20 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1560402283356.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "1325094687",
+    "id" : "DEE52CD2",
+    "lastKnownWriteTime" : 1559670642,
+    "last_content_update" : 1559670642,
+    "path" : "~/microcredentials/ids/webstory/story.Rmd",
+    "project_path" : "story.Rmd",
+    "properties" : {
+    },
+    "relative_order" : 1,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_markdown"
+}

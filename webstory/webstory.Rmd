@@ -1,0 +1,405 @@
+---
+title: "What's Your Story: Smart Meter Energy Usage"
+output: 
+  flexdashboard::flex_dashboard:
+    vertical_layout: scroll
+    orientation: rows
+    source_code: embed
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+# knitr opts
+knitr::opts_chunk$set(cache = FALSE,
+                      message = FALSE,
+                      warning = FALSE,
+                      echo = FALSE,
+                      eval = TRUE
+)
+```
+
+```{r libraryload}
+# libraries
+library(flexdashboard)
+library(tidyverse)
+library(lubridate)
+library(tsibble)
+library(sugrrants)
+library(glue)
+#library(bomrang) Not necessary bc already have weather data pulled
+library(hms)
+library(broom)
+library(ggbeeswarm)
+#library(here) Creating problems with shiny server, so links are direct
+```
+
+```{r read-data}
+# add all weather variables
+elec_long <- read_rds("data/elec_all.rds")
+fit <- read_rds("data/model_fit.rds")
+```
+
+
+Overview 
+=======================================================================
+
+```{r}
+# date filter
+start_date <- ymd("2018-01-01")
+end_date <- ymd("2018-12-31")
+date_ui <- dateRangeInput(
+  "date_selection", "Energy Usage between:",
+  start = start_date,
+  end = end_date ,
+  weekstart = 1,
+  min = min(elec_long$date),
+  max = max(elec_long$date)
+)
+# variable selection
+cl_ui <- selectInput("colour", "Colour",
+            c("by weekday vs holiday?" = "work",
+              "by season?" = "season",
+              "by daily rainfall?" = "rainfall",
+              "by daily minimum temperature?" = "min_temperature",
+              "by daily maximum temperature?" = "max_temperature",
+              "by solar exposure?" = "solar_exposure")
+)
+# threshold line
+thresh_ui <- numericInput(
+  "threshold", "Daily kWh threshold:", 12, min = 0, max = 30
+)
+# ui
+fluidRow(column(4, date_ui), column(4,cl_ui), 
+         column(4,thresh_ui))
+# colour 
+colour_scale <- reactive({
+  if (input$colour %in% c("work", "season")) {
+     return(scale_colour_brewer(palette = "Dark2"))
+  }
+  scale_colour_viridis_c(option = "B", direction = -1)
+})
+```
+
+
+```{r reactives}
+# data selection
+elec_sub <- reactive({
+  elec_long %>%
+    filter(between(date,input$date_selection[1], input$date_selection[2])) 
+})
+
+calendarise <- reactive({
+  sub <- elec_sub()
+  
+  daily <- sub %>% 
+    group_by(date) %>% 
+    summarise(daily_kwh = sum(kwh, na.rm = TRUE))
+  
+  joined <- sub %>% 
+    left_join(daily, by = "date") %>%
+    mutate(over_threshold = daily_kwh > input$threshold) %>%
+    frame_calendar(time, kwh, date, ncol = 4) 
+  joined
+})
+```
+
+Column
+------------------------------------
+
+### Calendar {data-height=800}
+    
+```{r}
+renderPlot({
+  cal <- calendarise() %>% 
+    ggplot(aes(x = .time, y = .kwh, group = date)) +
+    geom_line(aes(colour = !!rlang::sym(input$colour), linetype = over_threshold)) +
+    colour_scale() +
+    theme(legend.position = "bottom")
+  
+  prettify(cal)
+})
+```
+
+
+Daily Usage 
+=======================================================================
+
+```{r}
+grp_ui <- selectInput("grouping", "Summarise daily usage",
+            c("by day of week?" = "wday",
+              "by month of year?" = "month",
+              "by year?" = "year_factor",
+              "by season?" = "season",
+              "workday vs holiday?" = "work"))
+geom_ui <- selectInput("daily_geom", "Display as",
+            c("boxplot", "violin", "jitter", "beeswarm")
+            )
+# ui
+fluidRow(column(6, grp_ui), 
+         column(4, geom_ui)
+         )
+```
+
+Column
+------------------------------------
+
+### Daily Usage 
+
+```{r}
+geom <- reactive({
+  switch(input$daily_geom,
+         "boxplot" = geom_boxplot(),
+         "violin" = geom_violin(),
+         "jitter" = geom_jitter(),
+         "beeswarm" = geom_quasirandom())
+})
+
+renderPlot({
+  elec_sub() %>% 
+    group_by(!!rlang::sym(input$grouping), date) %>%
+    summarise(daily_kwh = sum(kwh)) %>%
+    ggplot(aes(x = !!rlang::sym(input$grouping), y = daily_kwh)) +
+    geom() +
+    labs(y = "Total Daily Usage (kWh)", x = NULL)
+})
+``` 
+
+
+Half-hourly Usage
+=======================================================================
+
+
+
+```{r line-inputs}
+selectInput("facets", "Facet hourly usage by",
+            c("none" = "none",
+              "by day of the week?" = "wday",
+              "by month of year?" = "month",
+              "by season?" = "season",
+              "by year?" = "year_factor",
+              "workday vs holiday?" = "work"))
+group_by_facets <- reactive({
+  if (input$facets == "none") {
+    return(vars(time))
+  } else {
+     return(vars(!!sym(input$facets), time))
+  }
+ 
+})
+facet_fun <- reactive({
+  if (!(input$facets == "none")) {
+    return(facet_wrap(vars(!!sym(input$facets))))
+  }
+  NULL
+})
+```
+
+### Line Plot
+
+```{r}
+renderPlot({
+  elec_sub() %>% 
+    group_by(!!!group_by_facets()) %>%
+    summarise(hourly_kwh = mean(kwh)) %>%
+    ggplot(aes(x = time, y = hourly_kwh)) +
+    geom_smooth(span=0.2, se=FALSE) +
+    geom_point() +
+    facet_fun() +
+    labs(y = "Average Hourly Usage (kWh)", x = NULL)
+})
+```
+
+
+Predict
+=======================================================================
+
+
+```{r}
+# benchmark for comparing tables
+# taken from https://www.energymadeeasy.gov.au/benchmark
+benchmark <- tibble::tribble(
+  ~size, ~ season, ~household_daily_kwh,
+  1, "summer", 7.5,
+  1, "autumn", 8,
+  1, "winter", 10.4,
+  1, "spring", 7.9,
+  1, "annual", 8.5,
+  2, "summer", 11.5,
+  2, "autumn", 11.7,
+  2, "winter", 14.6,
+  2, "spring", 11.9,
+  2, "annual", 12.4,
+  3, "summer", 13.1,
+  3, "autumn", 13.6,
+  3, "winter", 17.6,
+  3, "spring", 13.4,
+  3, "annual", 14.4,
+  4, "summer", 14.5,
+  4, "autumn", 15.2,
+  4, "winter", 18.9,
+  4, "spring", 14.7,
+  4, "annual", 15.8,
+  5, "summer", 15.8,
+  5, "autumn", 16.4,
+  5, "winter", 20.8,
+  5, "spring", 16.1,
+  5, "annual", 17.3
+)
+
+# data modifactions
+elec_compare <- reactive({
+  elec_long %>% 
+    filter(between(date, input$date_compare[1], input$date_compare[2]))
+})
+```
+
+Column
+------------------------------------
+
+### Model building
+
+We _fit_ a _linear model_ on log-transformed energy usage for 2018, using a four-way interaction: work day versus non-work day, time of the day, month, air conditioner switch on or not.
+
+$log(energy_i + 1) = work_i \times time_i \times month_i \times aircon_i$
+
+where all predictors are categorical variables. Note we create a dummy variable `aircon` to indicate the switch status of air conditioner. If daily maximum temperature is greater than 30 or daily minimum is less than 5, we switch on the air conditioner. 
+
+This model explains 43% variations in the data.
+
+### User inputs
+
+```{r}
+dateInput(
+  "input_date", "Pick a date",
+  value = ymd("2019-01-01"),
+  weekstart = 1,
+  min = ymd("2019-01-01"),
+  max = ymd("2025-12-31")
+)
+numericInput(
+  "input_temp_max", "Max temperature:", 32, min = 18, max = 47
+)
+numericInput(
+  "input_temp_min", "Min temperature:", 15, min = -3, max = 16
+)
+```
+
+### Predicted daily usage
+
+```{r}
+vic_holidays <- reactive({
+  holiday_aus(year(input$input_date), state = "VIC")
+})
+user_input_data <- reactive({
+  tibble(
+    date = input$input_date,
+    time = as.factor(unique(as.character(elec_long$time)))
+  ) %>% 
+  mutate(
+    # date based transformations
+    wday = wday(date, label = TRUE, abbr = TRUE, week_start = 1),
+    month = month(date, label = TRUE, abbr = TRUE),
+    work = case_when(
+      wday %in% c("Sat", "Sun") ~ "holiday",
+      date %in% vic_holidays()$date ~ "holiday",
+      TRUE ~ "work day"
+    ),
+    air_con = as.factor(if_else(input$input_temp_max > 30 | input$input_temp_min < 5, "yes", "no"))
+  )
+})
+```
+
+```{r}
+elec_pred <- reactive({
+  augment(fit, newdata = user_input_data()) %>% 
+  mutate(.fitted = exp(.fitted) - 1)
+})
+daily_2018 <- elec_long %>%
+  filter(year == 2018) %>% 
+  group_by(date) %>% 
+  summarise(daily = sum(kwh))
+daily_qtl <- quantile(daily_2018$daily)
+
+renderGauge({
+  gauge(
+    round(sum(elec_pred()$.fitted), 2), 
+    min = 0, max = ceiling(max(daily_qtl)),
+    symbol = "kwH",
+    gaugeSectors(
+      success = c(0, daily_qtl[3]),
+      warning = c(daily_qtl[3], daily_qtl[4]), 
+      danger = c(daily_qtl[4], ceiling(max(daily_qtl)))
+  ))
+})
+
+
+```
+
+
+
+Column
+-------------------------------------
+
+### Predict energy usage between {data-width=100}
+
+```{r}
+dateRangeInput(
+  "date_compare", "Select dates",
+  start = ymd("2019-01-01"),
+  end = ymd("2019-01-01") + months(1) - days(1),
+  weekstart = 1,
+  min = ymd("2019-01-01"),
+  max = max(elec_long$date)
+)
+```
+
+### Predicted versus observed usage {data-height=400}
+
+```{r}
+renderPlot({
+  new_data <- elec_compare() %>% 
+    mutate(time = as.factor(as.character(time))) %>% 
+    mutate_if(is.ordered, ~ factor(., ordered = FALSE))
+  pred_data <- augment(fit, newdata = new_data) %>% 
+    mutate(.fitted = exp(.fitted) - 1)
+  ggplot(data = pred_data %>% mutate(time = as_hms(as.character(time)))) +
+    geom_line(aes(x = time, y = kwh)) +
+    geom_line(aes(x = time, y = .fitted), colour = "hotpink") +
+    facet_calendar(~ date) +
+    scale_x_time(breaks = hms(hours = c(6, 12, 18))) +
+    labs(y = "Usage (kWh)", x = "Time")
+}, height = 400)
+```
+
+
+Explain
+=======================================================================
+
+This tab briefly explains the motivation and methods underneath each of the sections.
+
+**Overview**
+
+It is a good idea to provide a general entry point for the viewer. This should overview the data being examined, and encourage the viewer to think about it as a whole, before drilling down into small subsets of the data, or aggregating the data.
+
+A calendar plot was chosen to display a year's worth of data as the overview. Measurements are standardised to the minimum and maximum usage values for the entire time period. This allows the viewer to compare the usage across day, which days are more energy intensive and which are less. More information about a calendar plot can be found at https://pkg.earo.me/sugrrants/articles/frame-calendar.html. 
+
+The viewer can also colour the days by different variables, such as maximum daily temperature possibly indicating air conditioner is on, to examine usage coursely by these values. 
+
+**Daily usage**
+
+This tab drills down into usage patterns across different times, and categorical variables. The data is first aggregated, eg by total usage per day. The user can choose the type of display to show the distribution of values. The default is a side-by-side boxplot, which is a generically effective plot for this type of data.
+
+**Half-hourly usage**
+
+This tab drills down into sub-daily patterns, by averaging usage per half hour throughout the day. A loess smooth is overlaid to refine the temporal pattern, to help the viewer digest heavy and low usage times. (You can read more about loess smooths at https://en.wikipedia.org/wiki/Local_regression.)
+
+The plot can be facetted into sub-groups to compare usage across types of days, such as workday vs holiday.
+
+**Prediction**
+
+A linear model has been fitted for the 2018 year of data, that incorporates temperature. This is used to provide predictions for the future. The viewer can select the future time period to predict, and a calendar plot will be displayed of half-hourly usage predictions for this period. 
+
+It is also possible to predict a numerical value for the total daily usage for a single day. In this case the viewer needs to provide an estimate for the minimum and maximum temperature. 
+
+The motivation for this tab is to compare energy use with 2018 as the baseline, to encourage reduced usage in the future.
+

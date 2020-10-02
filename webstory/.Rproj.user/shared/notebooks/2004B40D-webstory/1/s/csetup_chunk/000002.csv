@@ -1,0 +1,6 @@
+"0","# knitr opts"
+"0","knitr::opts_chunk$set(cache = FALSE,"
+"0","                      message = FALSE,"
+"0","                      warning = FALSE,"
+"0","                      echo = FALSE"
+"0",")"

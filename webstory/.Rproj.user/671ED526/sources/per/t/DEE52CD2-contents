@@ -1,0 +1,521 @@
+---
+title: "What's Your Story: Smart Meter Energy Usage"
+output: 
+  flexdashboard::flex_dashboard:
+    vertical_layout: scroll
+    orientation: rows
+    source_code: embed
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+# knitr opts
+knitr::opts_chunk$set(cache.path = here::here("", "story_cache/"),
+                      message = FALSE,
+                      warning = FALSE,
+                      echo = FALSE,
+                      root.dir = here::here()
+)
+
+# libraries
+library(flexdashboard)
+library(tidyverse)
+library(lubridate)
+library(tsibble)
+library(sugrrants)
+library(glue)
+library(bomrang)
+library(hms)
+library(broom)
+```
+
+```{r preprocess}
+# preprocessing data
+elec <- read_csv(here::here("", "data", "meter_01.csv"), 
+                 skip=2,
+                 col_names = c("id", "date",  1:48)) %>% 
+  filter(id == "300") %>% 
+  mutate(date = ymd(date))
+
+# Victorian holidays dataset
+vic_holidays <- holiday_aus(2017:2019, state = "VIC")
+
+# transform from wide to long
+elec_long <- elec %>%
+  gather(time, kwh, -id, -date) %>%
+  mutate(kwh = as.numeric(kwh)) %>% 
+  mutate(
+    # time based transformations
+    time = as.integer(time),
+    hour = ceiling(time/ 2 - 1),
+    min = ifelse(time %% 2, 30, 0),
+    time = hms(minutes = min, hours = hour)
+  ) %>%
+  select(-hour, -min) %>%
+  arrange(date, time) %>%
+  mutate(
+    # date based transformations
+    wday = wday(date, label = TRUE, abbr = TRUE, week_start = 1),
+    month = month(date, label = TRUE, abbr = TRUE),
+    year = year(date),
+    year_factor = factor(year, ordered = TRUE),
+    season = case_when(
+      month %in% c("Dec", "Jan", "Feb") ~ "summer",
+      month %in% c("Mar", "Apr", "May") ~ "autumn",
+      month %in% c("Jun", "Jul", "Aug") ~ "winter",
+      month %in% c("Sep", "Oct", "Nov") ~ "spring",
+    ),
+    season = factor(season, 
+                    levels = c("summer", "autumn", "winter", "spring"),
+                    ordered = TRUE),
+    work = case_when(
+      wday %in% c("Sat", "Sun") ~ "holiday",
+      date %in% vic_holidays$date ~ "holiday",
+      TRUE ~ "work day"
+    )
+  )
+```
+
+
+```{r stations, include=FALSE, cache = TRUE}
+# weather data for Melbourne Aiport
+station_id <- sweep_for_stations(latlon = c(-37.8136, 144.9631)) %>%
+  filter(name == "MELBOURNE AIRPORT") %>%
+  pull(site)
+# download all weather mesurements for the site
+```
+
+```{r rain, cache=TRUE}
+# rainfall measured in mm
+rain <- get_historical(stationid = station_id) %>%
+  mutate(date = ymd(str_c(year, month, day, sep="-"))) %>%
+  filter(between(date, min(elec_long$date), max(elec_long$date)))%>%
+  select(date, rainfall, rainfall_quality = quality)
+```
+
+```{r maxtemp, cache = TRUE}
+# daily max temp measured in celsius
+max_temp <- get_historical(stationid = station_id, type = "max") %>%
+  mutate(date = ymd(str_c(year, month, day, sep="-"))) %>%
+  filter(between(date, min(elec_long$date), max(elec_long$date))) %>%
+  select(date, max_temperature, max_temp_quality = quality)
+```
+
+```{r mintemp, cache = TRUE}
+min_temp <- get_historical(stationid = station_id, type = "min") %>%
+  mutate(date = ymd(str_c(year, month, day, sep="-"))) %>%
+  filter(between(date, min(elec_long$date), max(elec_long$date))) %>%
+  select(date, min_temperature, min_temp_quality = quality)
+```
+
+```{r solar, cache = TRUE}
+# solar exposure measured in MJ/m^2
+solar <- get_historical(stationid = station_id, type = "solar")%>%
+  mutate(date = ymd(str_c(year, month, day, sep="-"))) %>%
+  filter(between(date, min(elec_long$date), max(elec_long$date))) %>%
+  select(date, solar_exposure)
+```
+
+```{r complete_weather, dependson=elec_long}
+# join by day
+weather <- rain  %>%
+  inner_join(max_temp) %>%
+  inner_join(min_temp) %>%
+  inner_join(solar)
+
+# add all weather variables
+elec_long <- elec_long %>%
+  left_join(weather, by = "date")
+```
+
+Inputs {.sidebar}
+=====================================
+
+```{r inputs}
+# date filter
+dateRangeInput(
+  "date_selection", "Energy Usage between:",
+  start = min(elec_long$date),
+  end = min(elec_long$date) + years(1),
+  weekstart = 1,
+  min = min(elec_long$date),
+  max = max(elec_long$date)
+)
+```
+
+
+```{r reactives}
+# data selection
+elec_sub <- reactive({
+  elec_long %>%
+    filter(between(date,input$date_selection[1], input$date_selection[2])) 
+})
+
+calendarise <- reactive({
+  sub <- elec_sub()
+  
+  daily <- sub %>% 
+    group_by(date) %>% 
+    summarise(daily_kwh = sum(kwh, na.rm = TRUE))
+  
+  joined <- sub %>% 
+    left_join(daily, by = "date") %>%
+    mutate(over_threshold = daily_kwh > input$threshold) %>%
+    frame_calendar(time, kwh, date, ncol = 4) 
+  joined
+})
+
+```
+
+
+Overview 
+=======================================================================
+
+```{r}
+# variable selection
+cl_ui <- selectInput("colour", "Colour",
+            c("by weekday vs holiday?" = "work",
+              "by season?" = "season",
+              "by daily rainfall?" = "rainfall",
+              "by daily minimum temperature?" = "min_temperature",
+              "by daily maximum temperature?" = "max_temperature",
+              "by solar exposure?" = "solar_exposure")
+)
+
+# threshold line
+thresh_ui <- numericInput(
+  "threshold", "Daily kWh threshold:", 12, min = 0, max = 30
+)
+
+
+
+# ui
+fluidRow(column(4,cl_ui), 
+         column(4,thresh_ui))
+
+# colour 
+colour_scale <- reactive({
+  if (input$colour %in% c("work", "season")) {
+     return(scale_colour_brewer(palette = "Dark2"))
+  }
+  scale_colour_viridis_c(option = "B", direction = -1)
+})
+
+```
+
+Column
+------------------------------------
+
+### Calendar {data-height=700}
+    
+```{r}
+renderPlot({
+  cal <- calendarise() %>% 
+    ggplot(aes(x = .time, y = .kwh, group = date)) +
+    geom_line(aes(colour = !!rlang::sym(input$colour), linetype = over_threshold)) +
+    colour_scale() +
+    theme(legend.position = "bottom")
+  
+  prettify(cal)
+
+})
+```
+
+
+Daily Usage 
+=======================================================================
+
+
+```{r}
+grp_ui <- selectInput("grouping", "Summarise daily usage",
+            c("by day of week?" = "wday",
+              "by month of year?" = "month",
+              "by year?" = "year_factor",
+              "by season?" = "season",
+              "workday vs holiday?" = "work"))
+
+geom_ui <- selectInput("daily_geom", "Display as",
+            c("boxplot", "violin", "jitter")
+            )
+
+# ui
+fluidRow(column(6, grp_ui), 
+         column(4, geom_ui)
+         )
+```
+
+
+Column
+------------------------------------
+
+
+### Daily Usage 
+
+```{r}
+geom <- reactive({
+  switch(input$daily_geom,
+         "boxplot" = geom_boxplot(),
+         "violin" = geom_violin(),
+         "jitter" = geom_jitter())
+})
+
+renderPlot({
+  elec_sub() %>% 
+    group_by(!!rlang::sym(input$grouping), date) %>%
+    summarise(daily_kwh = sum(kwh)) %>%
+    ggplot(aes(x = !!rlang::sym(input$grouping), y = daily_kwh)) +
+    geom() +
+    labs(y = "Total Daily Usage (kWh)", x = NULL)
+})
+``` 
+
+
+Half-hourly Usage
+=======================================================================
+
+```{r line-inputs}
+selectInput("facets", "Facet hourly usage by",
+            c("none" = "none",
+              "by day of the week?" = "wday",
+              "by month of year?" = "month",
+              "by season?" = "season",
+              "by year?" = "year_factor",
+              "workday vs holiday?" = "work"))
+
+group_by_facets <- reactive({
+  if (input$facets == "none") {
+    return(vars(time))
+  } else {
+     return(vars(!!sym(input$facets), time))
+  }
+ 
+})
+
+facet_fun <- reactive({
+  if (!(input$facets == "none")) {
+    return(facet_wrap(vars(!!sym(input$facets))))
+  }
+  NULL
+})
+
+```
+
+### Line Plot
+
+```{r}
+renderPlot({
+  elec_sub() %>% 
+    group_by(!!!group_by_facets()) %>%
+    summarise(hourly_kwh = mean(kwh)) %>%
+    ggplot(aes(x = time, y = hourly_kwh)) +
+    geom_line() +
+    geom_point() +
+    facet_fun() +
+    labs(y = "Average Hourly Usage (kWh)", x = NULL)
+})
+
+```
+
+
+Compare
+=======================================================================
+
+Column
+------------------------------------
+
+
+### How does your energy usage stack up?
+
+Select a set of dates to compare your energy usage:
+```{r}
+# date filter
+dateRangeInput(
+  "date_compare", "",
+  start = min(elec_long$date) + years(1),
+  end = max(elec_long$date),
+  weekstart = 1,
+  min = min(elec_long$date),
+  max = max(elec_long$date)
+)
+```
+
+How your does your usage stack up against the
+energy usage of the average Australian household?
+
+```{r}
+# compare usage
+selectInput("compare", 
+            "Compare against a household of size:",
+            c("Just me!" = 0, "1" = 1,  "2" = 2,"3" = 3, "4" = 4, "5+" = 5))
+```
+
+```{r }
+# benchmark for comparing tables
+# taken from https://www.energymadeeasy.gov.au/benchmark
+benchmark <- tibble::tribble(
+  ~size, ~ season, ~household_daily_kwh,
+  1, "summer", 7.5,
+  1, "autumn", 8,
+  1, "winter", 10.4,
+  1, "spring", 7.9,
+  1, "annual", 8.5,
+  2, "summer", 11.5,
+  2, "autumn", 11.7,
+  2, "winter", 14.6,
+  2, "spring", 11.9,
+  2, "annual", 12.4,
+  3, "summer", 13.1,
+  3, "autumn", 13.6,
+  3, "winter", 17.6,
+  3, "spring", 13.4,
+  3, "annual", 14.4,
+  4, "summer", 14.5,
+  4, "autumn", 15.2,
+  4, "winter", 18.9,
+  4, "spring", 14.7,
+  4, "annual", 15.8,
+  5, "summer", 15.8,
+  5, "autumn", 16.4,
+  5, "winter", 20.8,
+  5, "spring", 16.1,
+  5, "annual", 17.3
+)
+
+# data modifactions
+elec_compare <- reactive({
+  compare <- elec_long %>% 
+    filter(between(date, input$date_compare[1], input$date_compare[2])) %>% 
+    mutate(period = "comparison")
+  
+  baseline <- elec_long %>% 
+    filter(between(date,input$date_selection[1], input$date_selection[2])) %>%
+    mutate(period = "baseline")
+  
+  household <- benchmark %>% 
+    filter(size == input$compare, season != "annual")
+  
+  periods<- baseline %>% 
+    bind_rows(compare) %>%
+    group_by(period, date) %>%
+    summarise(daily_kwh = sum(kwh, na.rm = TRUE),
+              max_temperature = unique(max_temperature),
+              min_temperature = unique(min_temperature),
+              rainfall = unique(rainfall),
+              solar_exposure = unique(solar_exposure),
+              month = unique(month),
+              wday = unique(wday),
+              year = unique(year),
+              season = unique(season)) %>% 
+    arrange(date) %>% 
+    group_by(period) %>%
+    mutate(days = seq_len(n())) %>%
+    ungroup() %>%
+    left_join(household, by = "season")
+  
+  periods
+
+      
+})
+```
+
+We can _estimate_ the difference in energy usage between the your two selves
+using a _linear model_! You might like to see what happens to the estimates and 
+fit if you adjust for any of the following variables:
+```{r}
+
+checkboxGroupInput("predictors", "", 
+                   choices = c("day of the week" = "wday", 
+                               "month" = "month",
+                               "month x day of the week" = "interaction",
+                               "daily temparature" = "max_temperature"))
+
+model <- reactive({
+  
+  cols_selected <- unname(input$predictors)
+  
+  if (any(input$predictors == "interaction")) {
+    cols_selected <- setdiff(union(input$predictors, c("wday", "month")), "interaction")
+    lhs <- paste(c("period", cols_selected, "wday:month"), collapse = "+")
+  } else {
+    lhs <- paste(c("period", cols_selected), collapse = "+")
+  }
+  
+  mod_data <- elec_compare() %>%
+    mutate_if(is.ordered, ~ factor(., ordered = FALSE)) %>% 
+    select(period, daily_kwh, !!!syms(cols_selected)) 
+  
+  formula <- as.formula(paste("daily_kwh ~", lhs))
+  lm(formula, data = mod_data)
+})
+
+model_summary <- reactive({
+  res <- model() %>%
+    tidy()
+  
+  estimates <- res %>% 
+    select(term, estimate) %>% 
+    spread(term, estimate) %>% 
+    transmute(baseline = `(Intercept)`,
+              comparison = baseline + periodcomparison,
+              difference = baseline - comparison)
+  estimates
+})
+
+```
+
+### How do you compare to yourself and others? 
+
+```{r}
+renderPlot({
+  elec_compare() %>%
+    bind_cols(augment(model())) %>%
+    ggplot(aes(x = days, y =  daily_kwh, colour = period)) +
+    geom_line() +
+    geom_line(aes(y = .fitted), size = 2, alpha = 0.5) +
+    geom_line(aes(y = household_daily_kwh), colour = "purple", size = 2, alpha = 0.5) +
+    labs(y = "Daily Usage (kWh)", x = "Days") +
+    guides(color = FALSE) +
+    scale_color_brewer(palette = "Dark2")
+})
+```
+
+
+
+Column
+------------------------------------
+
+### Summary of model 
+
+Daily kWh estimates:
+```{r}
+renderTable({
+  model_summary()
+})
+```
+
+
+How's the fit?
+```{r}
+renderTable({
+  glance(model()) %>% 
+    select(r.squared, adj.r.squared, deviance)
+})
+```
+
+
+### Visualising the model fit
+
+```{r}
+renderPlot({
+  augmented <- elec_compare() %>%
+    bind_cols(augment(model())) 
+  augmented %>%
+    ggplot(aes(x = period, y =  .resid, fill = period)) +
+    geom_boxplot() +
+    labs(y = "Residuals", x = "") +
+    scale_fill_brewer(palette = "Dark2") +
+    guides(fill = FALSE)
+})
+```
+
+

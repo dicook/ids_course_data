@@ -1,0 +1,25 @@
+{
+    "id": "19EED9E3",
+    "path": "~/microcredentials/ids/webstory/webstory.Rmd",
+    "project_path": "webstory.Rmd",
+    "type": "r_markdown",
+    "hash": "3934865575",
+    "contents": "",
+    "dirty": false,
+    "created": 1576540695120.0,
+    "source_on_save": false,
+    "relative_order": 1,
+    "properties": {
+        "cursorPosition": "328,35",
+        "last_setup_crc32": "",
+        "scrollLine": "309"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1589682410,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1589682410204,
+    "read_only": false,
+    "read_only_alternatives": []
+}
