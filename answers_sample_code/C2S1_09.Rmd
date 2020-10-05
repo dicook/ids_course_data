@@ -1,0 +1,169 @@
+---
+title: "Course 2 Section 1.9 - Joins"
+author: "Jiaying Wu"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      message = FALSE,
+                      fig.width = 6,
+                      fig.height = 4,
+                      fig.align = "center")
+```
+
+```{r library}
+library(tidyverse)
+```
+
+### Bank data: left join
+
+Below are two made-up data sets: customer and transaction.
+
+- customer contains some personal information about a bank’s customers.
+
+- transaction contains spending transactions from some customers of the bank
+
+```{r customer}
+# Create bank customer info data
+customer <- tibble(customer_id = c("C120463", "N4244552", "A907892", "Z337572", "D701453", "A285883"),
+                   names = c("John", "Sam", "Mike", "Rachael", "Mary", "Will"),
+                   sex = c("M", "F", "M", "F", "F", "M"),
+                   educ = c("HS", "Bachelor", "PhD", "Bachelor", "HS", "HS"),
+                   wage = c(1200, 900, 3100, 600, 500, 800))
+
+# Print customer
+customer
+```
+
+```{r transaction}
+# Create bank spending transaction data
+transaction <- tibble(customer_id = c("D701453", "N4244552", "C120463", "A907892", "D701453", "C120463", "N4244552", "C120463", "A907892"),
+                      shop = c("JB Hifi", "Steakhouse", "Apple", "Coles", "Lobster Diner", "Dymocks", "Target", "Netflix", "Mecca"),
+                      amount = c(300, 110, 3000, 80, 185, 40, 25, 15, 170)) 
+
+# Print transaction
+transaction
+```
+
+#### Q1: left join customer into transaction by the customer_id variable.
+
+```{r left_join}
+# Left join customer into transaction by customer_id
+transaction_customer <- left_join(transaction, customer, by = "customer_id")
+
+# Print transaction_customer
+transaction_customer
+```
+
+```{r left_join_pipe}
+# Above join can also be done with the pipe operator (%>%)
+transaction %>% left_join(customer, by = "customer_id")
+```
+
+customer_id is the variable that connects both data sets together. Left joining customer into transaction using customer_id as the connecting variable add the variables names, sex, educ and wage into the transactions data.
+
+#### Q2: One insight we can gather from this joined data set, which we have named transaction_customer, is the average amount spent by individuals of various education levels:
+
+```{r}
+# Bar plot of average spending by education
+transaction_customer %>%
+  # group data by education
+  group_by(educ) %>%
+  # compute average spending (by education)
+  summarise(avg_amount = mean(amount)) %>%
+  ungroup() %>%
+  # aesthetic for bar plot
+  ggplot(aes(x = educ, y = avg_amount)) +
+  # bar is the visual element we want
+  # stat = "identity" to tell R to use y aesthetic and not it's own count for the y aesthetic
+  geom_bar(stat = "identity") +
+  # label the graph
+  labs(title = "Average spending by education level",
+       y = "Education",
+       x = "Average transaction amount")
+```
+
+Joining the bank’s customers’ personal information to data about spending transactions is different from joining data about transactions to the personal details of banking customers.
+
+Put differently, a left join of customer into transaction produces a joined data set that differs from a left join of transaction into customer.
+
+#### Q3: perform a left join of transaction into customer
+
+```{r}
+# Left join transaction into customer by customer_id
+customer %>% 
+  left_join(transaction, by = "customer_id")
+```
+
+### Bank data: inner join
+
+An inner join of customer and transaction keeps only observations with customer IDs that are in both the customer and transaction data.
+
+#### Q1:
+
+```{r}
+# Inner join customer and transaction by customer_id
+customer %>%
+  inner_join(transaction, by = "customer_id")
+```
+
+For inner joins, it does not matter which data set comes first, i.e, whether customer or transaction is placed before %>% does not produce an informatively different inner joined data. The only difference that we would see is how the columns and rows are arranged.
+
+Notice that the first left join data is the same as this inner join data. Execute the following code chunk to inner join transaction and FAANG. The resulting inner join data is shown below.
+
+```{r}
+# Create data of 2019 FAANG revenue
+FAANG <- tibble(company = c("Facebook", "Amazon", "Apple", "Netflix", "Alphabet (formerly Google)"),
+                revenue_billion = c(70.7, 280.5, 260.2, 20.16, 161.86)) 
+
+# Print FAANG
+FAANG
+```
+
+#### Q2:
+
+```{r}
+# Inner join transaction and FAANG by shop = company
+transaction %>%
+  inner_join(FAANG, by = c("shop" = "company"))
+```
+
+### Joining data from nycflights13
+
+Previously, we explored the flights data set from the nycflights13 package. Other data sets included in the nycflights13 package include airlines and airports. Execute the following code chunk to explore all 3 data sets.
+
+```{r}
+# Load nycflights13
+library(nycflights13)
+```
+
+```{r}
+# Head of flights
+head(flights)
+```
+
+```{r}
+# Head of airlines
+head(airlines)
+```
+
+```{r}
+# Head of airports
+head(airports)
+```
+
+To add the full airline name to the flights data set, you can combine airlines to flights with the left_join() function, as shown in the following code chunk. Execute the following code chunks to left join airlines to flights and airports to flights.
+
+```{r}
+# Left join airlines into flights
+flights %>% left_join(airlines, by = "carrier")
+```
+
+
+```{r}
+# Left join airports into flights
+flights %>% left_join(airports, by = c("origin" = "faa"))
+```

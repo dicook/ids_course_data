@@ -1,0 +1,109 @@
+---
+title: "Course 2 Section 1.7 - Relational data"
+author: "Jiaying Wu"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      message = FALSE,
+                      fig.width = 6,
+                      fig.height = 4,
+                      fig.align = "center")
+```
+
+```{r library}
+library(tidyverse)
+```
+
+#### Step 1: Open RStudio and install nycflights13
+
+If you haven’t already, open RStudio on your computer, and then install and load the package nycflights13.
+
+```{r data}
+#install.packages("nycflights13")
+library(nycflights13)
+```
+
+
+#### Step 2: Determine the amount of variables and observations
+
+Then, look up the help file for the flights data.
+
+- How many variables and observations are there?
+
+- What do the columns mean?
+
+```{r glimpse}
+glimpse(flights)
+```
+
+```{r description}
+?flights
+```
+
+- **year**, **month**, **day**: Date of departure.
+
+- **dep_time**, **arr_time**: Actual departure and arrival times (format HHMM or HMM), local tz.
+
+- **sched_dep_time**, **sched_arr_time**: Scheduled departure and arrival times (format HHMM or HMM), local tz.
+
+- **dep_delay**, **arr_delay**: Departure and arrival delays, in minutes. Negative times represent early departures/arrivals.
+
+- **carrier**: Two letter carrier abbreviation. See airlines to get name.
+
+- **flight**: Flight number.
+
+- **tailnum**: Plane tail number. See planes for additional metadata.
+
+- **origin**, **dest**: Origin and destination. See airports for additional metadata.
+
+- **air_time**: Amount of time spent in the air, in minutes.
+
+- **distance**: Distance between airports, in miles.
+
+- **hour**, **minute**: Time of scheduled departure broken into hour and minutes.
+
+- **time_hour**: Scheduled date and hour of the flight as a POSIXct date. 
+
+
+#### Step 3: Find out how many flights depart from JFK
+
+Use the wrangling verbs filter(), count() and summarise() on the flights data to answer the following: What is the average number of flights that United Airlines (UA) flies out of JFK between 8.00 am and 9.00 am by day of the month?
+
+```{r total_JFK}
+flights %>%
+  filter(origin == "JFK") %>%
+  count()
+```
+
+The total flights depart from JFK is 111279.
+
+The average number of flights that United Airlines (UA) flies out of JFK between 8.00 am and 9.00 am by day of the month:
+
+```{r avg_group}
+flights %>%
+  filter(origin == "JFK",
+         carrier == "UA",
+         dep_time >= 800 & dep_time <= 900) %>%
+  group_by(day) %>%
+  count() %>%
+  summarise(avg_flights = mean(n))
+```
+
+
+#### Step 4: Identify the plane responsible for delays
+
+Use the wrangling verbs, group_by(), summarise() and arrange() to find the plane that has the highest total arrival delay (minutes).
+
+```{r}
+flights %>% 
+  group_by(tailnum) %>% 
+  summarise(sum_arr_delay = sum(arr_delay,na.rm = TRUE)) %>% 
+  arrange(desc(sum_arr_delay))
+```
+
+The plane with the highest total arrival delay of 7317 minutes was caused by plane with tail number N15910.
+

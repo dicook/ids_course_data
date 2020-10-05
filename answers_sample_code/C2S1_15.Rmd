@@ -1,0 +1,77 @@
+---
+title: "Course 2 Section 1.15 - Dealing with missing data"
+author: "Jiaying Wu"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      message = FALSE,
+                      fig.width = 8,
+                      fig.height = 4,
+                      fig.align = "center")
+```
+
+```{r install_impute,eval=FALSE}
+if (!requireNamespace("BiocManager", quietly = TRUE))
+  install.packages("BiocManager")
+#BiocManager::install(version = "3.11")
+BiocManager::install("impute", version = "3.10")
+```
+
+```{r library}
+library(tidyverse)
+library(impute)
+library(visdat)
+library(naniar)
+```
+
+#### In RStudio, change the code to plot sea temperature against humidity, with colour representing missing humidity values. What do you learn about the imputations?
+
+```{r humidity_impute}
+tao_impute <- bind_shadow(oceanbuoys) %>%
+  arrange(year, sea_temp_c, humidity) %>%
+  select(sea_temp_c, humidity) 
+tao_impute <- impute.knn(as.matrix(tao_impute), 5)
+tao_shadow <- bind_shadow(oceanbuoys) %>%
+  arrange(year, sea_temp_c, humidity) %>%
+  mutate(sea_temp_c = tao_impute$data[,1],
+         humidity = tao_impute$data[,2])
+ggplot(tao_shadow,
+       aes(x = sea_temp_c,
+           y = humidity, 
+           colour=humidity_NA)) +
+  geom_point(alpha=0.7) + 
+  facet_wrap(~year) + 
+  scale_colour_brewer(palette="Dark2") +
+  theme(aspect.ratio=1)
+```
+
+```{r humidity_impute_year}
+tao_impute_93 <- bind_shadow(oceanbuoys) %>%
+  arrange(year, sea_temp_c, humidity) %>%
+  filter(year=="1993") %>%
+  select(sea_temp_c, humidity) 
+tao_impute_93 <- impute.knn(as.matrix(tao_impute_93), 5)
+tao_impute_97 <- bind_shadow(oceanbuoys) %>%
+  arrange(year, sea_temp_c, humidity) %>%
+  filter(year=="1997") %>%
+  select(sea_temp_c, humidity)
+tao_impute_97 <- impute.knn(as.matrix(tao_impute_97), 5)
+tao_impute <- rbind(tao_impute_93$data, tao_impute_97$data)
+tao_shadow <- bind_shadow(oceanbuoys) %>%
+  arrange(year, sea_temp_c, humidity) %>%
+  mutate(sea_temp_c = tao_impute[,1],
+         humidity = tao_impute[,2])
+ggplot(tao_shadow,
+       aes(x = sea_temp_c,
+           y = humidity, 
+           colour= humidity_NA)) +
+  geom_point(alpha=0.5) + 
+  facet_wrap(~year) + 
+  scale_colour_brewer(palette="Dark2") +
+  theme(aspect.ratio=1)
+```
+

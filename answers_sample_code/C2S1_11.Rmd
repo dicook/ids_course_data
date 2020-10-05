@@ -1,0 +1,179 @@
+---
+title: "Course 2 Section 1.11 - Your turn"
+author: "Jiaying Wu"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      message = FALSE,
+                      fig.width = 8,
+                      fig.height = 4,
+                      fig.align = "center")
+```
+
+### Step 1: Reading the data
+
+```{r read_agencies}
+# Load tidyverse
+library(tidyverse)
+
+# URL of raw text from GitHub
+agencies_URL <- "https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-01-15/agencies.csv"
+
+# Read agencies data
+agencies <- read_csv(agencies_URL)
+```
+
+```{r read_launches}
+# URL of raw text from GitHub
+launches_URL <- "https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-01-15/launches.csv"
+
+# Read agencies data
+launches <- read_csv(launches_URL)
+```
+
+
+### Step 2: Examine each data set
+
+```{r agencies}
+# Look at agencies
+glimpse(agencies)
+```
+
+```{r launches}
+# Look at launches
+glimpse(launches)
+```
+
+#### Q1: How many distinct agencies (space launch providers) are in the data set agencies?
+
+```{r agencies_distinct}
+# 1. Check if each row in agencies is distinct (should return same data)
+agencies %>%
+  distinct()
+```
+
+
+#### Q2: Which variable in agencies uniquely describes each agency?
+
+```{r agencies_unique}
+# 2. Variable that uniquely describes each space launch providers 
+agencies %>%
+  distinct(agency)
+```
+
+"agency" varaible return the same number of row, it mean the "agency" varaible uniquely describes each agency.
+
+#### Q3: Is there an agency that has more than one organisation phase code? If so, which agency?
+
+```{r}
+# 3. Compare with above to see if there is an agency with more than one org phase code
+agencies %>%
+  distinct(ucode)
+```
+
+Variable "agency" is the org phase code。
+
+#### Q4: Why might an agency have more than one organisation phase code?
+
+```{r}
+# 4. Number of distinct agency code for each agency name
+agencies %>%
+  group_by(name) %>%
+  summarise(num_agency_code = n_distinct(agency)) %>%
+  ungroup() %>%
+  arrange(desc(num_agency_code))
+```
+
+```{r}
+# Filter for Sea Launch Limited Partnership
+agencies %>%
+  filter(name == "Sea Launch Limited Partnership")
+```
+
+### Step 3: Joining tables together
+
+obtain the number of agencies that provided a space launch.
+
+#### Join agencies to launches
+
+```{r}
+# Left join agencies to launches
+launches_agencies <- left_join(launches, agencies, by = "agency")
+
+# Print launches_agencies
+launches_agencies
+```
+
+#### Retain matching phase codes
+
+```{r}
+# Join to retain only observations with matches
+launches_agencies <- inner_join(launches, agencies, by = "agency")
+
+# Print launches_agencies
+launches_agencies
+```
+
+### Step 4: Data visualisation on joined tables
+
+```{r}
+# Overlapping bar plot of successful and failed launches for each space agency
+launches_agencies %>%
+  ggplot(aes(x = name, fill = category)) +
+  geom_bar(position = position_dodge(width = 0.2), alpha = 0.5) + # adjust bar position & reduce colour transparency
+  labs(title = "Launch Outcomes", x = "Space Agency", y = "Frequency") +
+  scale_fill_discrete(name = "Outcome", labels = c("Failure", "Success")) + # change legend title and labels
+  theme(legend.position = "bottom") +
+  coord_flip() # flips the x and y coordinates
+```
+
+Note that we can certainly improve the visualisation of total failed and successful space launches by agency with some data wrangling.
+
+```{r}
+# Wrangling: Create tidy data frame of count of successful and failed launches
+success_fail_count <- launches_agencies %>%
+  group_by(short_name, category) %>%
+  summarise(n_success_fail = n()) %>%
+  ungroup() %>%
+  spread(category, n_success_fail) %>%
+  rename(Success = O, Fail = `F`) %>%
+  mutate(Success = replace_na(Success, 0),
+         Fail = replace_na(Fail, 0),
+         Total_Launch = Fail + Success) %>%
+  # Order space agency by total launches
+  mutate(short_name = fct_reorder(short_name, Total_Launch)) %>%
+  gather(Outcome, Count, -short_name)
+
+# Plotting: Overlapping bar plot of successful and failed launches for each space agency
+success_fail_count %>%
+  filter(Outcome != "Total_Launch") %>%
+  ggplot(aes(x = short_name, y = Count, fill = Outcome)) +
+  geom_bar(stat = "identity") + 
+  labs(title = "Launch Outcomes", x = "Space Agency", y = "Frequency") +
+  # colours based on Dark2 colour palette
+  scale_fill_manual(values = c("#D95F02", "#1B9E77")) +
+  facet_wrap(~ Outcome, scales = "free_x") +
+  coord_flip()
+```
+
+Which launch vehicles are in the top five highest number of launches and which space agency do they come from?
+
+```{r}
+# Plot of launch vehicle by frequency
+launches_agencies %>%
+  group_by(short_name, state_code.y, type.x) %>%
+  summarise(freq_launchvehicle = n()) %>%
+  # Return vehicle with highest launch number
+  top_n(1, freq_launchvehicle) %>%
+  ungroup() %>%
+  ggplot(aes(x = fct_reorder(short_name, freq_launchvehicle), y = freq_launchvehicle, colour = state_code.y)) +
+  geom_text(aes(label = type.x), size = 3) +
+  labs(title = "Number of times vehicle was launched", x = "Space Agency", y = "Frequency") +
+  scale_colour_discrete(name = "State Responsible", labels = c("Cayman Island", "France", "Japan", "Russia", "USA")) +
+  coord_flip()
+```
+
+
+

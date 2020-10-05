@@ -1,0 +1,154 @@
+---
+title: "Course 2 Section 1.17 - Your turn"
+author: "Jiaying Wu"
+date: "04/10/2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      message = FALSE,
+                      fig.width = 5,
+                      fig.height = 4,
+                      fig.align = "center")
+```
+
+```{r library}
+library(tidyverse)
+library(naniar)
+library(visdat)
+```
+
+```{r data}
+# Read the data
+houses <- read_csv(here::here("data", "Melbourne_housing_FULL.csv"))
+```
+
+### Examine house prices in Melbourne, Australia
+
+#### Q1. Make an overview plot of the full data. Which variables have missings? Focus only on the variables Price, Rooms, Type, Distance, Bedroom2, Bathroom.
+
+```{r miss_color}
+# 1. Keep only variables Price, Rooms, Type, Distance, Bedroom2, Bathroom
+houses_sub <- houses %>% 
+  select(Price, Rooms, Type, Distance, Bedroom2, Bathroom)
+
+# Map of data coloured by variable type and NA
+houses_sub %>%
+  vis_dat()
+```
+
+```{r miss_map}
+# Missingness map 
+houses_sub %>%
+  vis_miss()
+```
+
+#### Q2. Make a missing values summary of all the data. What proportion of observations are missing on Price?
+
+```{r miss_var}
+# 2. Missing variables summary table
+miss_var_summary(houses_sub)
+```
+
+#### Q3. Remove the observations that have missing values on Price because this is the response variable that we want to ultimately predict. You can’t build a stable model of house price if you don’t know the price.
+
+```{r remove_na_price}
+# 3. Remove missing house price values
+houses_sub <- houses_sub %>%
+  filter(!is.na(Price))
+```
+
+#### Q4. Make the shadow matrix, and plot Bathroom vs Bedroom2 coloured by missingness on Bedroom2. Why don’t any missing values show up?
+
+```{r shadow_matrix}
+# 4. Scatter plot of bath vs. bed coloured by missingess in bed 
+houses_sub_shadow <- houses_sub %>%
+  bind_shadow()
+
+houses_sub_shadow %>%
+  ggplot(aes(x = Bathroom, y = Bedroom2, colour = Bedroom2_NA)) +
+  geom_point(alpha = 0.4) +
+  # Dark2 palette to accommodate colour blindness
+  scale_colour_brewer("Miss bedroom", palette = "Dark2")
+```
+
+```{r miss_bath_bed}
+# Missingness map with just bathroom and bedroom
+houses_sub_shadow %>%
+  select(Bathroom, Bedroom2) %>%
+  vis_miss()
+```
+
+```{r miss_remove_na_bed}
+# Missingness map based on missings in bedroom
+houses_sub_shadow %>%
+  select(Bathroom, Bedroom2) %>%
+  filter(is.na(Bedroom2)) %>%
+  vis_miss()
+```
+
+Missing values don't show because all missing values in bedroom are also missing in bathroom
+
+#### Q5. Impute the missing values for Bedroom2 and Bathroom, by using mean imputation.
+
+```{r impute_mean}
+# 5. Impute missing values in bed and bath with their mean
+houses_sub_shadow_mean <- houses_sub_shadow %>%
+  mutate(Bedroom2 = ifelse(is.na(Bedroom2), mean(Bedroom2, na.rm = TRUE), Bedroom2),
+         Bathroom = ifelse(is.na(Bathroom), mean(Bathroom, na.rm = TRUE), Bathroom))
+
+# Mean bed and bath
+houses_sub_shadow %>%
+  summarise(mean_bed = mean(Bedroom2, na.rm = TRUE),
+            mean_bath = mean(Bathroom, na.rm = TRUE))
+```
+
+
+#### Q6. Make a plot of the two variables, with the imputed values coloured. Describe the pattern that you see.
+
+```{r plot_impute_mean}
+# 6. Scatter plot of bath vs. bed coloured by imputed values
+houses_sub_shadow_mean %>%
+  ggplot(aes(x = Bathroom, y = Bedroom2, colour = Bedroom2_NA))  +
+  geom_point(alpha = 0.4) +
+  scale_colour_brewer("Miss bedroom", palette = "Dark2")
+```
+
+#### Q7. Impute the missing values for Bedroom2 and Bathroom, using a linear model on the variable Rooms.
+
+```{r impute_lm}
+# 7. Linear regression
+
+# Use houses_sub_shadow and not houses_sub_shadow_mean because houses_sub_shadow_mean
+# has already imputed missing values in bath and bed (used the mean)
+
+# Run a linear regression of bedroom on room
+br2 <- lm(Bedroom2 ~ Rooms, data = houses_sub_shadow)
+
+# Run a linear regression of bathroom on room
+ba <- lm(Bathroom ~ Rooms, data = houses_sub_shadow)
+```
+
+
+
+#### Q8. Make a plot of the two variables, with the imputed values coloured. Is this better or worse than the mean value imputed values? Explain your thinking.
+
+```{r plot_impute_lm}
+# 8. Scatter plot after inputation with linear regression
+
+# Impute missing values for  bedroom and bathroom based on above regression
+houses_sub_shadow_linreg <- houses_sub_shadow %>%
+  mutate(Bedroom2 = ifelse(is.na(Bedroom2), predict(br2, new = houses_sub_shadow), Bedroom2),
+         Bathroom = ifelse(is.na(Bathroom), predict(ba, new = houses_sub_shadow), Bathroom))
+
+# Scatter plot
+ggplot(houses_sub_shadow_linreg, 
+       aes(x = Bedroom2, y = Bathroom, colour = Bedroom2_NA)) +
+  geom_point(alpha = 0.4) + 
+  scale_colour_brewer("Miss bedroom", palette = "Dark2")
+```
+
+
+
+

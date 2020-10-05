@@ -1,0 +1,48 @@
+---
+title: "Course 2 Section 1.13 - Missing values"
+author: "Jiaying Wu"
+date: "02/10/2020"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      message = FALSE,
+                      fig.width = 6,
+                      fig.height = 4,
+                      fig.align = "center")
+```
+
+```{r data }
+# library
+library(tidyverse)
+library(visdat)
+library(naniar)
+
+# Read the tb data and filter for Australia only
+tb_au <- read_rds(here::here("data", "tb_tidy.rds")) %>%
+  filter(country == "Australia")
+```
+
+### Q1: What proportion of values are missing?
+
+```{r}
+miss_summary(tb_au)["miss_df_prop"]
+```
+
+### Q2: What proportion of variables have missing values?
+
+```{r}
+miss_summary(tb_au)["miss_var_prop"]
+```
+
+### Q3: How many cases have two missing values?
+
+```{r}
+miss_case_table(tb_au)
+```
+
+
+

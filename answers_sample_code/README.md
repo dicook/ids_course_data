@@ -33,3 +33,19 @@ Sample Answer Code for Data Science: Data-Driven Decision Making
 -   `C1S3_13.Rmd`: Sample answer code for Course 1 Step 3.13: `READING AND WRITING JSON FILES`
 
 -   `C1S3_15.Rmd`: Sample answer code for Course 1 Step 3.15: `YOUR TURN`
+
+### Course 2: Modelling and Visualisation
+
+#### Week 1: DATA WRANGLING IN DETAIL
+
+-   `C2S1_07.Rmd`: Sample answer code for Course 2 Step 1.7: `RELATIONAL DATA`
+
+-   `C2S1_09.Rmd`: Sample answer code for Course 2 Step 1.9: `JOINS`
+
+-   `C2S1_11.Rmd`: Sample answer code for Course 2 Step 1.11: `YOUR TURN`
+
+-   `C2S1_13.Rmd`: Sample answer code for Course 2 Step 1.13: `MISSING VALUES`
+
+-   `C2S1_15.Rmd`: Sample answer code for Course 2 Step 1.15: `DEALING WITH MISSING DATA`
+
+-   `C2S1_17.Rmd`: Sample answer code for Course 2 Step 1.17: `YOUR TURN`
