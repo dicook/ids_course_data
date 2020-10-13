@@ -1,0 +1,115 @@
+---
+title: "Course 2 Section 2.13 - Your turn"
+author: "Jiaying Wu"
+date: "13/10/2020"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      message = FALSE,
+                      fig.width = 6,
+                      fig.height = 4,
+                      fig.align = "center")
+```
+
+```{r}
+# Load library
+library(tidyverse)
+library(nycflights13)
+library(ggmap)
+```
+
+### Delta flights
+
+```{r}
+# La Guardia airport
+airports %>% filter(faa == "LGA")
+```
+
+### Confirming the point location
+
+Confirm with a Google Map search that the geographical coordinates describing the location of La Guardia airport is in fact a point location in New York City.
+
+#### Q1.Filter the flights data for for Delta Air Line flights from La Guardia in August
+
+```{r}
+# Filter Delta flights and create variable of La Guardia's location
+delta <- flights %>% 
+  filter(carrier == "DL", origin == "LGA", month == 8) %>%
+  left_join(airports, by = c("dest" = "faa")) 
+```
+
+#### Q2.Create variables orig_lon and orig_lat to add La Guardia airport’s location
+
+```{r}
+# Create variables to add the geographical coordinates of LGA's location
+delta <- delta %>%
+  mutate(orig_lon = filter(airports, faa == "LGA")$lon, 
+         orig_lat = filter(airports, faa == "LGA")$lat)
+```
+
+
+#### Q3.Download a map from the Google Maps Platform based on the following geographical coordinates -92.20562 (longitude) and 36.20259 (latitude)
+
+```{r}
+# Geographical coordinates of a location of interest
+location_US <- c(lon = -92.20562, lat = 36.20259)
+```
+
+```{r}
+# Enable Google services (need to obtain your Google Map API key first)
+register_google(key = "Insert_your_API_key")
+```
+
+```{r}
+# Download map based on above coordinates (zoom of 4 gives us map of US)
+map_US <- get_map(location_US, zoom = 4)
+```
+
+#### Q4.Overlay lines connected by the origin and destinations of Delta Air Line flights on this map
+
+```{r}
+# Plot map
+ggmap(map_US) +
+  geom_segment(data = delta,
+               aes(x = orig_lon, y = orig_lat, xend = lon, yend = lat),
+               color = "navyblue", 
+               alpha = 0.2) 
+```
+
+### Airport delays
+
+Using the weather and flights data set, perform an analysis to answer the question of whether the wind direction of strong winds affect airport operations.
+
+#### Q5.join the weather data to the flights data
+
+```{r}
+library(nycflights13)
+
+flight_weather <- flights %>%
+  left_join(weather, by = c("origin", "time_hour"))
+
+flight_weather
+```
+
+#### Q6.filter by La Guardia airport and high wind speeds (greater than 25 m/s)
+
+```{r}
+flight_weather <- flight_weather %>%
+  filter(origin == "LGA", wind_speed > 25)
+
+flight_weather
+```
+
+#### Q7.plot departure delay against wind direction, perhaps focusing a restricted range of delay or using only a smoother instead of all the points.
+
+```{r}
+ggplot(flight_weather, aes(x = wind_dir, y = dep_delay)) +
+  geom_point(alpha = 0.2) +
+  geom_smooth(se = FALSE) +
+  labs(title = "Departure delay versus Wind direction at La Guardia airport", x = "Wind Direction", y = "Departure Delay (minutes)")
+```
+

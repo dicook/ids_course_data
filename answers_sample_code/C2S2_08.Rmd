@@ -1,0 +1,178 @@
+---
+title: "Course 2 Section 2.8 - Your turn"
+author: "Jiaying Wu"
+date: "05/10/2020"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      message = FALSE,
+                      fig.width = 6,
+                      fig.height = 5,
+                      fig.align = "center")
+```
+
+### Step 1: Preparing the data
+
+```{r data}
+# Load tidyverse
+library(tidyverse)
+
+# Load rwalkr
+library(rwalkr)
+
+# Read in pedestrian data from 2016 to 2018 for 3 locations
+ped_melbcent <- melb_walk_fast(year = 2016:2018, sensor = "Melbourne Central")
+invisible(gc())
+ped_southbank <- melb_walk_fast(year = 2016:2018, sensor = "Southbank")
+ped_bourkest.mallnorth <- melb_walk_fast(year = 2016:2018, sensor = "Bourke Street Mall (North)")
+
+# Row bind 3 data frames
+ped_melb.south.bourke <- bind_rows(ped_melbcent, ped_southbank, ped_bourkest.mallnorth)
+
+# Look at the data
+glimpse(ped_melb.south.bourke)
+```
+
+The variables in the data include:
+
+- Sensor - location of the sensor device
+
+- Date_Time - date and time of the reading
+
+- Date - date (yyyy-mm-dd)
+
+- Time - hour of the day
+
+- Count - total sensor count of pedestrians
+
+```{r}
+# Load lubridate
+library(lubridate)
+
+# Create 'time' variables
+ped_melb.south.bourke <- ped_melb.south.bourke %>%
+  mutate(year = year(Date),
+         month = month(Date, label = TRUE, abbr = TRUE), 
+         wday = wday(Date, label = TRUE, abbr = TRUE, week_start = 1),
+         day = day(Date))
+```
+
+#### Step 2: Exploring time gaps
+
+Using what you have learned from Visualising Missing data, you will check for missing values/time gaps in the data.
+
+```{r}
+library(visdat)
+library(naniar)
+```
+
+```{r}
+#  Melbourne Central time gaps
+ped_melb.south.bourke %>% 
+  filter(Sensor == "Melbourne Central") %>%
+  ggplot(aes(x=Date_Time, y=Count)) + 
+  geom_miss_point(size = 0.7) +
+  facet_wrap(year ~., scales = "free_x", nrow = 3) +
+  labs(title = "Melbourne Central", y = "Count", x = "Date-Time")
+```
+
+```{r}
+#  Southbank time gaps
+ped_melb.south.bourke %>% 
+  filter(Sensor == "Southbank") %>%
+  ggplot(aes(x=Date_Time, y=Count)) + 
+  geom_miss_point(size = 0.7) +
+  facet_wrap(year ~., scales = "free_x", nrow = 3) +
+  labs(title = "Southbank", y = "Count", x = "Date-Time")
+```
+
+```{r}
+#  Bourke Street Mall (North) time gaps
+ped_melb.south.bourke %>% 
+  filter(Sensor == "Bourke Street Mall (North)") %>%
+  ggplot(aes(x=Date_Time, y=Count)) + 
+  geom_miss_point(size = 0.7) +
+  facet_wrap(year ~., scales = "free_x", nrow = 3) +
+  labs(title = "Bourke Street Mall (North)", y = "Count", x = "Date-Time")
+```
+
+#### Step 3: Visualising the data
+
+return the mean and median hourly pedestrian counts in Melbourne Central, Southbank and Bourke Street Mall (North).
+
+```{r}
+# Table of mean and median pedestrian count
+ped_melb.south.bourke %>% 
+  group_by(Sensor) %>%
+  summarise(meanCount = mean(Count, na.rm=TRUE),
+            medianCount = median(Count, na.rm=TRUE)) %>%
+ungroup()
+```
+
+```{r}
+# Histogram of pedestrian count
+ped_melb.south.bourke %>%
+  ggplot(aes(x = Count)) +
+  geom_histogram() +
+  labs(title = "Distribution of hourly pedestrian count", 
+       x = "Pedestrians detected",
+       y = "Frequency") +
+  facet_wrap(~ Sensor, scales = "free", nrow = 3)
+```
+
+#### obtain the median hourly pedestrian counts by location and month.
+
+```{r}
+# Median hourly pedestrian count for each month and location
+ped_melb.south.bourke %>% 
+  group_by(Sensor, month) %>%
+  summarise(medianCount = median(Count, na.rm=TRUE)) %>%
+  ungroup() %>%
+  spread(Sensor, medianCount)
+```
+
+```{r fig.width = 6,fig.height = 4}
+# Challenge: Line plots median hourly pedestrian count
+ped_melb.south.bourke %>% 
+  group_by(Sensor, month) %>%
+  summarise(medianCount = median(Count, na.rm=TRUE)) %>%
+  ungroup() %>%
+  ggplot(aes(x= month,  y = medianCount, color = Sensor, group = Sensor)) +
+  geom_line() +
+  geom_point() +
+  labs(title = "Median Hourly Pedestrian Counts, 2016-2018", 
+       subtitle = "Generally more pedestrians detected in Southbank across all months.",
+       x = "Month", 
+       y = "Median Counts")
+```
+
+#### Box plots of pedestrian counts
+
+```{r}
+# Box plot of pedestrian counts
+ped_melb.south.bourke %>% 
+  ggplot(aes(x = as.factor(Time), y = Count, colour = Sensor)) + 
+  geom_boxplot(alpha = 0.5) +
+  facet_wrap(~ year, nrow = 3) +
+  theme(legend.position = "bottom") + # change the legend position
+  labs(title = "Distribution of pedestrian counts at each hour of the day", y = "Pedestrian Counts", x = "Hour of the day")
+```
+
+#### Pedestrian count prior to NYE fireworks
+
+```{r}
+# Fill out ??? 
+ped_melb.south.bourke %>%
+  filter(month == "Dec", day %in% 24:31) %>%
+  ggplot(aes(x = Date_Time, y = Count, colour = Sensor)) + 
+  geom_line(alpha = 0.5) +
+  facet_wrap(year ~., scales = "free_x", nrow = 3) +
+  theme(legend.position = "bottom") + # change the legend position
+  labs(title = "Pedestrian count at each hour of the day leading up to NYE", y = "Pedestrian Count", x = "Hour of the day")
+```
+
+

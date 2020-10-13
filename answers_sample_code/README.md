@@ -49,3 +49,13 @@ Sample Answer Code for Data Science: Data-Driven Decision Making
 -   `C2S1_15.Rmd`: Sample answer code for Course 2 Step 1.15: `DEALING WITH MISSING DATA`
 
 -   `C2S1_17.Rmd`: Sample answer code for Course 2 Step 1.17: `YOUR TURN`
+
+#### Week 2: TEMPORAL AND SPATIAL DATA
+
+-   `C2S2_05.Rmd`: Sample answer code for Course 2 Step 2.5: `WORKING WITH DATES AND TIMES`
+
+-   `C2S2_08.Rmd`: Sample answer code for Course 2 Step 2.8: `YOUR TURN`
+
+-   `C2S2_10.Rmd`: Sample answer code for Course 2 Step 2.10: `SPATIAL POINT DATA`
+
+-   `C2S2_13.Rmd`: Sample answer code for Course 2 Step 2.13: `YOUR TURN`

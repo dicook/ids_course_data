@@ -1,0 +1,125 @@
+---
+title: "Course 2 Section 2.10 - Spatial point data"
+author: "Jiaying Wu"
+date: "12/10/2020"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      message = FALSE,
+                      fig.width = 5,
+                      fig.height = 4,
+                      fig.align = "center")
+```
+
+```{r data}
+# library  
+library(tidyverse)
+library(here)
+
+# Load plane_N4YRAA (plane_N4YRAA.rda is an R object that we're loading into the R environment)
+load(here("data", "plane_N4YRAA.rda"))
+
+# Read airports
+airports <- read_csv(here("data", "airports.csv"))
+```
+
+#### Join the two tables
+
+```{r join_table}
+# Select airport code, location and airport name but filter only for the latest airport 
+airports <- airports %>%
+  select(AIRPORT, LATITUDE, LONGITUDE, AIRPORT_IS_LATEST, DISPLAY_AIRPORT_NAME) %>%
+  filter(AIRPORT_IS_LATEST == 1) %>%
+  select(-AIRPORT_IS_LATEST)
+
+# First join: Join airports to plane_N4YRAA to add origin location info
+N4YRAA_latlon <- plane_N4YRAA %>%
+  left_join(airports, by = c("ORIGIN" = "AIRPORT")) %>%
+  rename(ORIGIN_LATITUDE = LATITUDE,
+         ORIGIN_LONGITUDE = LONGITUDE)
+
+# Second join: Join airports to N4YRAA_latlon to add destination location info
+N4YRAA_latlon <- N4YRAA_latlon %>%
+  left_join(airports, by = c("DEST" = "AIRPORT")) %>%
+  rename(DEST_LATITUDE = LATITUDE,
+         DEST_LONGITUDE = LONGITUDE) %>%
+  # Arrange N4YRAA_latlon by flight date and departure time
+  arrange(FL_DATE, DEP_TIME)
+```
+
+### Map it with ggmap
+
+```{r}
+# Load ggmap
+library(ggmap)
+
+# Load ggthemes
+library(ggthemes)
+
+# Enable Google services (need to obtain your Google Map API key first)
+register_google(key = "Insert_your_API_key")
+```
+
+### Give it a go!
+
+```{r location}
+# Geographical coordinates of a location in decimal degrees 
+arkansas <- c(lon = -92.20562, lat = 36.20259)
+
+# Download Stamen map of Arkansas with toner-lite map type
+map_toner_lite <- get_map(location = arkansas, zoom = 5, source = "stamen", maptype = "toner-lite")
+```
+
+
+#### greyscale map with minimal geographical features
+
+```{r}
+# Flights from N4YRAA on 2017-05-06
+ggmap(map_toner_lite, base_layer = ggplot(data = filter(N4YRAA_latlon, FL_DATE == "2017-05-06"))) +
+  geom_segment(aes(x = ORIGIN_LONGITUDE,
+                   y = ORIGIN_LATITUDE,
+                   xend = DEST_LONGITUDE,
+                   yend = DEST_LATITUDE),
+               color = "navyblue") +
+  geom_point(aes(x = ORIGIN_LONGITUDE,
+                 y = ORIGIN_LATITUDE), 
+             color = "orange",
+             alpha = 0.3, 
+             size = 4) +
+  geom_point(aes(x = DEST_LONGITUDE,
+                 y = DEST_LATITUDE), 
+             color = "red",
+             alpha = 0.3, 
+             size = 2) +
+  labs(x = "lon", y = "lat")
+```
+
+#### plot of N4YRAA’s flights each day.
+
+```{r fig.width = 5,fig.height = 5}
+# Map with flight origin and destination points: 2017-05
+ggmap(map_toner_lite, base_layer = ggplot(data = N4YRAA_latlon)) +
+  geom_segment(aes(x = ORIGIN_LONGITUDE,
+                   y = ORIGIN_LATITUDE,
+                   xend = DEST_LONGITUDE,
+                   yend = DEST_LATITUDE),
+               color = "navyblue") +
+  geom_point(aes(x = ORIGIN_LONGITUDE,
+                 y = ORIGIN_LATITUDE), 
+             color = "orange",
+             alpha = 0.3, 
+             size = 4) +
+  geom_point(aes(x = DEST_LONGITUDE,
+                 y = DEST_LATITUDE), 
+             color = "red",
+             alpha = 0.3, 
+             size = 2) +
+  theme_map() + 
+  facet_wrap(~ FL_DATE) +
+  labs(title = "Plane N4YRAA's flights on May, 2017")
+```
+

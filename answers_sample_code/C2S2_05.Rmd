@@ -1,0 +1,63 @@
+---
+title: "Course 2 Section 2.5 - Working with dates and times"
+author: "Jiaying Wu"
+date: "05/10/2020"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      message = FALSE,
+                      fig.width = 7,
+                      fig.height = 4,
+                      fig.align = "center")
+```
+
+```{r library}
+library(tidyverse)
+library(rwalkr)
+library(lubridate)
+```
+
+```{r data}
+ped <- melb_walk_fast(2018, "Melbourne Central")
+ped
+```
+
+
+### Using the pedestrian counts for Melbourne Central answer the following:
+
+#### Q1.Is the pedestrian count different for each day of the year? 
+
+To answer this question, use the wrangling verbs, group_by() and summarise() to compute the total pedestrian counts for each day (set na.rm = TRUE). The following line plot represents the total pedestrian counts for each day. Note that ped in this exercise contains pedestrian count data for each hour of each day in 2018 based on the sensor located in Melbourne Central.
+
+```{r count_by_date}
+count_by_date <- ped %>%
+  group_by(Date) %>%
+  summarise(sum_count = sum(Count, na.rm = TRUE)) 
+
+count_by_date %>%
+  ggplot(aes(x = Date, y = sum_count)) +
+  geom_line() +
+  ggtitle("Total pedestrian count around Melbourne Central for each ay of 2018") +
+  ylab("Total daily count")
+```
+
+
+#### Q2.Is the central tendency and variability of daily pedestrian counts by each day of the week different? To answer this question:
+
+- You will need to use the data frame that you generated from the previous question, which contains the total daily counts.
+
+- Create a day of the week variable with the wday() function.
+
+- Use the wrangling verbs group_by() and summarise() to compute the mean and standard deviation daily counts over each day of the week (set na.rm = TRUE for both computations).
+
+```{r count_by_wday}
+count_by_date %>%
+  mutate(wday = wday(Date)) %>%
+  group_by(wday) %>%
+  summarise(mean = sum(sum_count, na.rm = TRUE),
+            std = sd(sum_count, na.rm = TRUE))
+```
