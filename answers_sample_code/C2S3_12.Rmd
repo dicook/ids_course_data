@@ -1,0 +1,135 @@
+---
+title: 'Course 2 Section 3.12 -  BUILDING MANY MODELS: FITTING (PLOT ALL THE MODELS)'
+author: "Jiaying Wu"
+date: "17/10/2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      message = FALSE,
+                      warning = FALSE,
+                      fig.width = 7,
+                      fig.height = 5,
+                      fig.align = "center")
+```
+
+```{r}
+#load library
+library(tidyverse)
+library(gapminder)
+library(broom)
+```
+
+```{r}
+# Create variable year1952
+gapminder2 <- gapminder %>% 
+  mutate(year1952 = year-1952)
+
+# Group by country, nest, use mutate to fit a model for each country
+by_country <- gapminder2 %>% 
+  select(country, year1952, lifeExp, continent) %>%
+  group_by(country, continent) %>% 
+  nest() %>% 
+  mutate(model = purrr::map(data, ~ lm(lifeExp ~ year1952, data = .))) %>%
+  ungroup()
+
+# Unnest the model column but do so in a tidy way that returns the intercept and slope coefficient 
+country_coefs <- by_country %>% 
+  mutate(model = map(model, broom::tidy)) %>%
+  unnest(model) %>%
+  #Wrangle the data - intercept and slope coefficient as columns
+  select(country, continent, term, estimate) %>% 
+  spread(term, estimate) %>%
+  rename(intercept = `(Intercept)`)
+
+# Extract the R-squared of each country's fitted linear model
+country_fit <- by_country %>% 
+  mutate(model = map(model, broom::glance)) %>%
+  unnest(model)
+```
+
+### Give it a go!
+
+filter the top 12 fitted models of life expectancy based on $R^2$ and compare them with the bottom 12 fitted models.
+
+```{r}
+# Top and bottom 12 fitted models based on R^2
+goodfit <- country_fit %>% 
+  top_n(r.squared, n = 12) %>%
+  mutate(fit = "goodfit")
+
+badfit <- country_fit %>% 
+  top_n(r.squared, n = -12) %>%
+  mutate(fit = "badfit") 
+
+# Row bind goodfit with badfit
+good_bad_fit <- bind_rows(goodfit, badfit) %>%
+  arrange(desc(r.squared))
+
+# Plot to compare R-squared of country's with good and bad fitting models of life expectancy 
+good_bad_fit %>%
+  ggplot(aes(x = country, y = r.squared)) +
+  geom_bar(alpha = 0.5, stat = "identity") +
+  facet_wrap(~ fit, nrow = 2, scales = "free_x") +
+  labs(title = "Goodness-of-fit of countries with the best and worse fitting model of life expectancy",
+       subtitle = "Each country is fitted with a linear model",
+       x = "Country", 
+       y = "R-squared")
+```
+
+compare the estimated slope coefficient of these country’s fitted model of life expectancy.
+
+```{r}
+# Join estimated intercept and slope coefficients to good_bad_fit
+good_bad_fit <- left_join(good_bad_fit, (country_coefs %>% select(-continent)), by = "country")
+
+# Print the R-squared and estimated slope coefficients
+good_bad_fit %>%
+  select(country, fit, r.squared, intercept, year1952)
+```
+
+```{r}
+# Compare the R-squared and estimated slope coefficients for good and bad fitting models
+good_bad_fit %>%
+  ggplot(aes(x = country, y = year1952)) +
+  geom_bar(alpha = 0.5, stat = "identity") +
+  facet_wrap(~ fit, nrow = 2, scales = "free_x") +
+  labs(title = "Estimated slope coefficients of countries with the best and worse fitting model of life expectancy",
+       subtitle = "Each country is fitted with a linear model",
+       x = "Country", 
+       y = "Estimated slope coefficient")
+```
+
+Apply the arrange() function to appropriately arrange columns in country_coefs to answer the following questions. Which country has the:
+
+#### Q1.lowest improvement in life expectancy?
+
+```{r}
+country_coefs %>%
+  arrange(year1952)
+```
+
+#### Q2.highest improvement in life expectancy?
+
+```{r}
+country_coefs %>%
+  arrange(desc(year1952))
+```
+
+
+#### Q3.lowest initial life expectancy?
+
+```{r}
+country_coefs %>%
+  arrange(intercept)
+```
+
+
+#### Q4.highest initial life expectancy?
+
+```{r}
+country_coefs %>%
+  arrange(desc(intercept))
+```
+

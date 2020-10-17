@@ -1,0 +1,33 @@
+---
+title: "Course 2 Section 3.3 - LINEAR REGRESSION MODELS"
+author: "Jiaying Wu"
+date: "15/10/2020"
+output: pdf_document
+---
+
+### Continue to better your understanding of linear regression models by responding to one or more of the following questions:
+
+#### Q1.The following model of $y$ does not have an intercept term: $y = \beta_{1} x_1 + \epsilon$. Is this still a simple linear regression model?
+
+Yes, it's still a simple linear regression model.
+
+
+#### Q2.Is $y = \beta_{0} + \beta_{1}x_1^2 + \epsilon$ a simple linear regression model?
+
+Yes, the model is still linear in the parameters even though the predictor variable is squared. If we can rewrite a model in a form that is linear in parameters, then it's a linear model. In this case, We can rewrite $x_2 = x_1^2$, then the model is linear in the parameters $\beta_0$ and $\beta_2$, $y = \beta_0 + \beta_2 x_2 + \epsilon$.
+
+
+#### Q3.Can a multiple linear regression model contain non-linear independent variables?
+
+Yes, a multiple linear regression model can contain non-linear independent variables.
+
+
+#### Q4.Is it true that $y$ and $x_1$ are positively correlated for the following fitted simple linear regression model? $\hat{y} = -2 + 9 x_1$
+
+Yes, $y$ and $x_1$ are positively correlated.
+
+
+#### Q5.Is it true that $y$ and $x_2$ are positively correlated for the following fitted multiple linear regression model? $\hat{y} = -2 - 7 x_1 + 3 x_2$
+
+Holding $x_1$ to be constant, this fitted model tells us that if $x_2$ increases by one unit, $y$ will increase by 3 units.
+

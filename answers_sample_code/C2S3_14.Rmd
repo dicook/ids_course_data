@@ -1,0 +1,189 @@
+---
+title: "Course 2 Section 3.14 -  YOUR TURN"
+author: "Jiaying Wu"
+date: "17/10/2020"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      message = FALSE,
+                      warning = FALSE,
+                      fig.width = 5,
+                      fig.height = 4,
+                      fig.align = "center")
+```
+
+```{r}
+#load library
+library(tidyverse)
+library(broom)
+library(gridExtra)
+
+# Load readxl
+library(readxl)
+
+# Read data of children per woman (assumes data is stored in data folder and file is named children_per_woman_total_fertility)
+fert_raw <- read_xlsx(here::here("data", "children_per_woman_total_fertility.xlsx"))
+```
+
+### Wrangling the data
+
+#### Q1.Reshape the data using the gather() verb
+
+```{r}
+fert <- fert_raw %>% 
+  gather(year, fert, -country) 
+```
+
+#### Q2.Change the year variable into a numeric
+
+```{r}
+fert <- fert %>%
+  mutate(year = as.numeric(year))
+```
+
+#### Q3.Filter for data from 1950 onwards
+
+```{r}
+fert <- fert %>%
+  filter(year >= 1950 & year <= 2015)
+```
+
+#### Q4.Create variable year1950 (which is a transformation of the year variable by shifting it to begin in 1950)
+
+```{r}
+fert <- fert %>%
+  mutate(year1950 = year - 1950)
+```
+
+### Childbirths per woman, 1950-2015
+
+produce the following line plot of childbirths per woman across each country:
+
+```{r}
+# Line plot of total fertility per woman from 1950 to 2015
+ggplot(fert, aes(x = year, y = fert, group = country)) +
+  geom_line(alpha = 0.1) +
+  labs(title = "Number of children born per woman, 1950-2015", 
+       subtitle = "Each line represents a single country",
+       x = "Year", 
+       y = "Number of children")
+```
+
+produce an interactive line plot of the number of children born per woman. It uses the ggplotly() function from the plotly package, which converts a ggplot object into a plotly object to form interactive graphs.
+
+```{r}
+# Load plotly
+library(plotly)
+
+# Line plot of total fertility per woman from 1950 to 2015
+line_fert <- ggplot(fert, aes(x = year, y = fert, group = country)) +
+  geom_line(alpha = 0.1) +
+  labs(title = "Number of children born per woman, 1950-2015", 
+       subtitle = "Each line represents a single country",
+       x = "Year", 
+       y = "No. of children")
+
+# Interactive line plot
+ggplotly(line_fert)
+```
+
+### ‘The Great Leap Forward’
+
+Conduct a quick web search to learn about the economic campaign called the ‘Great Leap Forward’ and then produce a line plot of the number of children born per woman for the country associated with this campaign
+
+```{r}
+# Great Leap Forward
+ggplot((fert %>% filter(country == "China")), aes(x = year, y = fert)) +
+  geom_line() +
+  labs(title = "Number of children born per woman, 1950-2015", 
+       x = "Year", 
+       y = "No. of children")
+```
+
+### Building and plot many models
+
+```{r}
+by_country <- fert %>% 
+  select(country, year1950, fert) %>%
+  group_by(country) %>% 
+  nest() %>%
+  mutate(model = map(data, ~ lm(fert ~ year1950, data = .)))
+```
+
+### Did you fit the linear model?
+
+You will need to unnest the model column, but be sure to tidy the lm objects when you do. Once you have done this, you can use the spread() function to reshape the data, which will place the estimated intercept and slope coefficient corresponding to each country’s fitted model into columns.
+
+```{r fig.width=8, fig.height=4}
+# Tibble of estimated slope and intercept of each country's fitted model
+country_coefs <- by_country %>% 
+  mutate(model = map(model, broom::tidy)) %>%
+  unnest(model)
+
+# Reshape the tibble above so that the intercept and slope are in columns
+country_coefs <- country_coefs %>% 
+  select(country, term, estimate) %>% 
+  spread(term, estimate) %>%
+  rename(intercept = `(Intercept)`)
+
+# Unnest the model column to return the fitted values, residuals, etc.
+country_model <- by_country %>% 
+  mutate(model = map(model, broom::augment)) %>%
+  unnest(model)
+
+# Line plot of life expectancy for each country
+p1 <- fert %>% 
+  ggplot(aes(year, fert, group = country)) +
+  geom_line(alpha = 0.1) + 
+  labs(title = "Data", x = "Year", y = "No. of children per woman")
+  
+# Plot of fitted linear model for each country
+p2 <- ggplot(country_model) + 
+  geom_line(aes(x = year1950 + 1950, y = .fitted, group = country), alpha = 0.1) +
+  labs(title = "Fitted Models", x = "Year", y = "Prediction")
+
+# Arrange above plots into 2-column grid
+grid.arrange(p1, p2, ncol = 2)
+```
+
+Notice that when the fitted linear models are plotted together, there a three groups of predictions:
+
+1. One group of countries were predicted to have very high fertility rates in the 1950s (approximately 7.5 children per woman), then a steep constant decline to approximately 2.5 children per woman in the recent decade.
+
+2. Another group of countries were predicted to have very high fertility rates in the 1950s (approximately 7.5 children per woman), which seemed to persistent up until the recent decade (perhaps a slight drop of about 1 child per woman).
+
+3. The third group of countries were predicted to have a low fertility rates in the 1950s (approximately 3.5 children per woman), then steadily declined to approximately 2.5 children per woman in the recent decade.
+
+### Filter with a low R-squared
+
+You can examine countries whose total fertility is poorly fitted with a linear model by filtering fitted models with a low R-squared.
+
+```{r}
+# Extract the R-squared of each country's fitted linear model
+country_fit <- by_country %>% 
+  mutate(model = map(model, broom::glance)) %>%
+  unnest(model)
+
+# Filter fitted models with an R-squared less than 0.5
+badfit <- country_fit %>% filter(r.squared < 0.5)
+
+# Filter data from gapminder with countries with a bad fitting model
+fert_sub <- fert %>% filter(country %in% badfit$country)
+
+# Line plot of total fertility per woman from 1950 to 2015
+line_fert_sub <- ggplot(fert_sub, aes(x = year, y = fert, group = country)) +
+  geom_line(alpha = 0.1) +
+  geom_point(size = 0.1, alpha = 0) +
+  labs(title = "Number of children born per woman, 1950-2015", 
+       subtitle = "Each line represents a single country",
+       x = "Year", 
+       y = "No. of children")
+
+# Interactive line plot
+ggplotly(line_fert_sub)
+```
+

@@ -74,3 +74,34 @@ knitr::opts_chunk$set(
 
 - `C2S2_13.Rmd`: Sample answer code for Course 2 Step 2.13: `YOUR TURN`
 
+#### Week 3: MODELLING
+
+- `C2S3_02.Rmd`: Sample answer code for Course 2 Step 3.2: `STATISTICAL MODELS`
+
+- `C2S3_03.Rmd`: Sample answer code for Course 2 Step 3.3: `LINEAR REGRESSION MODELS`
+
+- `C2S3_04.Rmd`: Sample answer code for Course 2 Step 3.4: `INFERENCE`
+
+- `C2S3_05.Rmd`: Sample answer code for Course 2 Step 3.5: `PREDICTION`
+
+- `C2S3_06.Rmd`: Sample answer code for Course 2 Step 3.6: `OPTIMISATION`
+
+- `C2S3_07.Rmd`: Sample answer code for Course 2 Step 3.7: `GOODNESS OF FIT`
+
+- `C2S3_09.Rmd`: Sample answer code for Course 2 Step 3.9: `YOUR TURN`
+
+- `C2S3_11.Rmd`: Sample answer code for Course 2 Step 3.11: `BUILDING MANY MODELS: FITTING`
+
+- `C2S3_12.Rmd`: Sample answer code for Course 2 Step 3.12: `BUILDING MANY MODELS: FITTING (PLOT ALL THE MODELS)`
+
+- `C2S3_14.Rmd`: Sample answer code for Course 2 Step 3.14: `YOUR TURN`
+
+#### Week 4: STATISTICAL AND COMPUTATIONAL MODELS
+
+- `C2S4_06.Rmd`: Sample answer code for Course 2 Step 4.6: `REGRESSION TREES`
+
+- `C2S4_09.Rmd`: Sample answer code for Course 2 Step 4.9: `YOUR TURN`
+
+- `C2S4_11.Rmd`: Sample answer code for Course 2 Step 4.11: `CLASSIFICATION TREES`
+
+- `C2S4_13.Rmd`: Sample answer code for Course 2 Step 4.13: `YOUR TURN`

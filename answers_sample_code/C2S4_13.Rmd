@@ -1,0 +1,107 @@
+---
+title: "Course 2 Section 4.13 - YOUR TURN"
+author: "Jiaying Wu"
+date: "17/10/2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      message = FALSE,
+                      warning = FALSE,
+                      fig.width = 5,
+                      fig.height = 4,
+                      fig.align = "center")
+```
+
+### What you need to do
+
+In a previous exercise, regression trees were used to predict housing auction prices in Melbourne, which is a continuous variable. In this exercise, your task is to determine the location of the house.
+
+Since the response variable is a categorical variable, classification trees are the best model for you to use.
+
+### About the data
+
+A subset of the data, that includes two suburbs (Carlton and Brighton) and five variables is used for this exercise. The popular split criteria for classification trees are Gini and Entropy.
+
+find out how the model responds to the two criteria.
+
+```{r}
+# load library
+library(tidyverse)
+library(rpart)
+library(rpart.plot)
+
+# load data
+houses_raw <- read_csv("https://raw.githubusercontent.com/datascienceprogram/ids_course_data/master/Melbourne_housing_FULL.csv")
+
+# subset data
+houses_suburb2 <- houses_raw %>% 
+  select(Suburb, Price, Landsize, Rooms, Type) %>% 
+  filter(Suburb %in% c("Carlton", "Brighton"))
+
+houses_suburb2
+```
+
+use Gini to split the tree. 
+
+```{r}
+rp_fit_gini <- rpart(Suburb ~ ., data = houses_suburb2, parms = list(split = "gini"))
+rp_fit_gini
+```
+
+### Identify the number of terminal nodes
+
+#### Q1.Based on the print output, how many terminal nodes does the model produce? What’s the first split for the tree? 
+
+```{r}
+printcp(rp_fit_gini)
+```
+
+There are seven terminal nodes, the first split is if the landsize larger than or equal to 160.5.
+
+### Identify the number of splits
+
+The previous print output displays the ‘CP’ table for the model fit, which contains information about the model’s goodness of fit.
+
+#### Q2.How many splits are performed during the model fitting?
+
+There are six splits (nsplit in bottom row).
+
+#### Q3.After two splits, what is $R^2$? Interpret that $R^2$.
+
+1 - 0.72449 = 0.27551
+
+The model explained 27.551% of the variance after two splits.
+
+### Entropy criteria
+
+```{r}
+rp_fit_entropy <- rpart(Suburb ~ ., data = houses_suburb2, parms = list(split = "information"))
+rpart.plot(rp_fit_entropy)
+```
+
+### Compute the confusion table
+
+```{r}
+pred_gini <- predict(rp_fit_gini, houses_suburb2, type = "class")
+pred_entropy <- predict(rp_fit_entropy, houses_suburb2, type = "class")
+table(houses_suburb2$Suburb, pred_gini)
+table(houses_suburb2$Suburb, pred_entropy)
+```
+
+#### Q3.How many cases have been correctly classified for both models?
+
+Gini criteria:
+
+444+47 = 491
+
+Entropy criteria:
+
+449+39 = 488
+
+
+#### Q4.Which criteria gives a better model?
+
+Gini criteria might gives a better model.
+

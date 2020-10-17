@@ -1,0 +1,74 @@
+---
+title: "Course 2 Section - 3.7 GOODNESS OF FIT"
+author: "Jiaying Wu"
+date: "16/10/2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      message = FALSE,
+                      warning = FALSE,
+                      fig.width = 5,
+                      fig.height = 4,
+                      fig.align = "center")
+```
+
+```{r}
+#load library
+library(tidyverse)
+library(broom)
+library(lubridate)
+```
+
+```{r data}
+# Read CO2 data and apply some pre-processing
+CO2.spo <- read_csv(
+  "https://raw.githubusercontent.com/datascienceprogram/ids_course_data/master/daily_merge_co2_spo.csv",
+  col_names = c("date", "time", "day", "decdate", "n", "flg", "co2"), skip = 69) %>%
+  filter(flg == 0) %>%
+  mutate(date = ymd(date))
+
+# Create variable day0 (a rescaling of day)
+CO2.spo <- CO2.spo %>% 
+  mutate(day0 = day - min(day))
+```
+
+### Give it a go
+
+Explore the linear model of CO2 and with and without the quadratic term:
+
+$co2 = \beta_{0} + \beta_{1} day_{0} + \epsilon$
+
+$co2 = \beta_{0} + \beta_{1} day_{0} + \beta_{2} day_{0}^2 + \epsilon$
+
+- What is the $adjusted-R^2$ and BIC for both models?
+
+- Which is the preferred model?
+
+
+#### Model 1
+
+```{r}
+co2_mod1 <- lm(co2~day0, data=CO2.spo)
+tidy(co2_mod1)
+```
+
+```{r}
+glance(co2_mod1) %>%
+  select(adj.r.squared, AIC)
+```
+
+#### Model 2
+
+```{r}
+co2_mod2 <- lm(co2~day0+I(day0^2), data=CO2.spo)
+tidy(co2_mod2)
+```
+
+```{r}
+glance(co2_mod2) %>%
+  select(adj.r.squared, AIC)
+```
+
+Since model 2 have the higher $adjusted-R^2$ and lower BIC, the model 2 is preferred.

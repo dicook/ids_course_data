@@ -1,0 +1,84 @@
+---
+title: "Course 2 Section 3.5 - PREDICTION"
+author: "Jiaying Wu"
+date: "16/10/2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      message = FALSE,
+                      fig.width = 5,
+                      fig.height = 4,
+                      fig.align = "center")
+```
+
+```{r}
+#load library
+library(tidyverse)
+library(broom)
+```
+
+### Give it a go!
+
+#### Q1.Produce a scatter plot of fuel efficiency against engine size with each dot coloured by vehicle class.
+
+```{r}
+mpg %>%
+  ggplot(aes(x = displ, y = hwy, colour=class)) + # hwy - hwy fuel efficiency & displ - engine size
+  geom_point() +
+  labs(x = "Engine Size (L)", 
+       y = "Highway Fuel Efficiency (mpg)", 
+       title = "Scatter plot of fuel efficiency against engine size", 
+       subtitle = "As engine size increases, fuel efficiency typically decreases")
+```
+
+#### Q2.Estimate a multiple linear regression model of highway fuel efficiency using engine size and vehicle class as independent variables.
+
+```{r}
+multi_lin_fit <- lm(formula = hwy ~ displ + class, data = mpg)
+```
+
+#### Q3.Use the the summary() or tidy() function to return the estimated coefficients and report the fitted model in equation form.
+
+```{r}
+summary(multi_lin_fit)
+```
+
+```{r}
+tidy(multi_lin_fit)
+```
+
+$\hat{hwy} = 38.953 - 2.2976displ - 5.3122classcompact - 4.9471classmidsize - 8.7986classminivan - 11.9232classpickup - 4.6988classsubcompact - 10.5851classsuv$
+
+#### Q4.Plot the fitted model over the scatter plot.
+
+```{r}
+mpg_fit <- augment(multi_lin_fit)
+
+mpg_fit %>% 
+  ggplot() +
+  geom_point(aes(x = displ, y = hwy, colour=class)) +
+  geom_line(aes(x = displ, y=.fitted, colour=class)) +
+  labs(x = "Engine Size (L)", 
+       y = "Highway Fuel Efficiency (mpg)", 
+       title = "Scatter plot of fuel efficiency against engine size", 
+       subtitle = "The model is different for each type of vehicle")
+```
+
+#### Q5.How much of the variation in highway fuel efficiency can be explained by engine size and vehicle class (the summary() function returns a statistic that will help you answer this question)?
+
+The R-squared is 0.7939, the engine size and vehicle class help to explain 79.39% of the variation in highway fuel efficiency.
+
+#### Q6.Interpret the estimated slope coefficient attached to the engine size variable.
+
+displ, coef = -2.3. with class fixed, engine size increases by 1L, the hwy decreases 2.3 miles per gallon.
+
+#### Q7.Predict the highway fuel efficiency of a pickup with a 2L engine (hint: let pickup indicator variable be equal to 1 and all other the class indicator variables be equal to 0).
+
+hwy = 39 - 2.3*2 - 11.9 = 22.5
+
+#### Q8.Why might predictions of the highway fuel efficiency of a Tesla Model 3 using this regression model be unreliable?
+
+There are no data for this car model (electricity engine) in `mpg`.
+

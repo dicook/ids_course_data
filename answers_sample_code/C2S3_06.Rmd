@@ -1,0 +1,92 @@
+---
+title: "Course 2 Section 3.6 - OPTIMISATION"
+author: "Jiaying Wu"
+date: "16/10/2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      message = FALSE,
+                      fig.width = 5,
+                      fig.height = 4,
+                      fig.align = "center")
+```
+
+```{r}
+#load library
+library(tidyverse)
+library(broom)
+```
+
+### Give it a go
+
+Continue to develop your understanding of the OLS estimator, optimal fitted line and residuals by making your way through this exercise. You’ll need to use a pen or pencil and paper to produce your work, which you can then share with other learners.
+
+Below is a data set with 5 observations for the two variables, x and y:
+
+```{r}
+df <- tibble(x=c(1.5, 2, 3.1, 3.9, 5), y=c(3.7, 4.6, 5.5, 5.7, 7.2))
+df
+```
+
+Training a linear model of y using this data set produces the following equation:
+
+```{r}
+fit_model <- lm(y ~ x, df)
+tidy(fit_model)
+```
+
+$\hat{y} =  2.5338 + 0.9052x$
+
+#### Q1.compute the fitted values of y, i.e., the prediction of y for each value of x.
+
+```{r}
+df <- df %>%
+  mutate(y_hat = predict(fit_model))
+
+df
+```
+
+#### Q2.use the predictions to compute the residuals and then the SSR
+
+```{r}
+df <- df %>%
+  mutate(residual = residuals(fit_model))
+
+df
+```
+
+```{r}
+# SSR
+sum(df$residual ^ 2)
+```
+
+
+### Repeat the exercise above using the following less optimal fitted model:
+
+$\hat{y} =  2.5 + 1.1x$
+
+#### Q3.compute the fitted values of y
+
+```{r}
+df2 <- tibble(x=c(1.5, 2, 3.1, 3.9, 5), y=c(3.7, 4.6, 5.5, 5.7, 7.2)) %>%
+  mutate(y_hat = 2.5+1.1*x)
+
+df2
+```
+
+#### Q4.use the predictions to compute the residuals and then the SSR
+
+```{r}
+df2 <- df2 %>%
+  mutate(residual = y - y_hat)
+
+df2
+```
+
+```{r}
+# SSR
+sum(df2$residual ^ 2)
+```
+

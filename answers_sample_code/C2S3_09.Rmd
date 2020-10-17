@@ -1,0 +1,227 @@
+---
+title: "Course 2 Section 3.9 - YOUR TURN"
+author: "Jiaying Wu"
+date: "16/10/2020"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      message = FALSE,
+                      warning = FALSE,
+                      fig.width = 5,
+                      fig.height = 4,
+                      fig.align = "center")
+```
+
+```{r}
+#load library
+library(tidyverse)
+library(broom)
+library(lubridate)
+```
+
+```{r}
+# Load PISA data file if stored in folder named "data"
+load(here::here("data","pisa_au.rda"))
+```
+
+### Step 1: Create a variable
+
+Create a variable called science, which represents the student’s science score based on the average of 10 plausible value (PV) scores in science.
+
+```{r}
+# Create data frame of science scores
+pisa_au_science <- pisa_au %>% 
+  # Create science score based on the 10 PV science scores
+  mutate(science = (PV1SCIE + PV2SCIE + PV3SCIE + PV4SCIE + PV5SCIE + 
+    PV6SCIE + PV7SCIE + PV8SCIE + PV9SCIE + PV10SCIE) / 10)
+```
+
+### Step 2: Rename variables
+
+Rename the following variables so that they better reflect what they represent:
+
+- ST094Q01NA represents the student’s enjoyment of science.
+
+- SMINS represents the student’s time spent studying science per week.
+
+- W_FSTUWT represents the student’s weighting, which is an indication of how many other students they represent in Australia, relative to their socioeconomic and demographic characteristics.
+
+- ST004D01T represents the student’s gender (NA is also a category here but there are no NAs for this variable in this data set). Any ‘missingness’ in this variable is information and should not be removed or corrected.
+
+- ANXTEST represents the student’s test anxiety level.
+
+```{r}
+pisa_au_science <- pisa_au_science %>% 
+  # Select and rename ambiguous names
+  select(science, science_fun = ST094Q01NA, science_time = SMINS,
+    stuweight = W_FSTUWT, gender=ST004D01T, anxtest = ANXTEST) %>%
+  # Recode gender variable
+  mutate(gender = factor(gender, 
+                            levels=c(1,2),
+                            labels=c("girl", "boy")), exclude = NULL)
+```
+
+### Step 3: Filter and convert
+
+Filter out anomalies and missing values, and then convert the variables into appropriate classes.
+
+```{r}
+pisa_au_science <- pisa_au_science %>% 
+  # Filter out missing values in science_time
+  filter(!is.na(science_fun), !is.na(science_time)) %>% 
+  # Convert science_fun into a factor
+  mutate(
+    science_fun = as.factor(science_fun),
+    science_time = as.numeric(science_time)
+  ) %>%
+  # Filter for science_time greater than 0
+  filter(science_time > 0)
+```
+
+### Relationship between science score and time spend studying science
+
+#### Q1.If you did not apply a log transformation to study time, how would you describe its distribution?
+
+```{r fig.width = 6, fig.height = 6}
+pisa_au_science %>% 
+  ggplot(aes(x = science_time, y = science, colour = science_fun)) + 
+  geom_point(alpha = 0.1) + 
+  facet_wrap(~ science_fun, ncol = 2) + 
+  scale_colour_brewer("Enjoy science", palette = "Dark2") +
+  theme(legend.position = "bottom") + 
+  ggtitle("Relationship between science score and time spent studying it") +
+  labs(subtitle = "Students are grouped based on how much they enjoy science") +
+  xlab("Time spent studying science per week*") + 
+  ylab("Science score")
+```
+
+The study time mostly clumped on the left with a right skewed. 
+
+#### Q2.Based on the log scaled x-axis, how would you describe the relationship between science score and time spent studying?
+
+```{r fig.width = 6, fig.height = 6}
+pisa_au_science %>% 
+  ggplot(aes(x = science_time, y = science, colour = science_fun)) + 
+  geom_point(alpha = 0.1) + 
+  facet_wrap(~ science_fun, ncol = 2) + 
+  scale_colour_brewer("Enjoy science", palette = "Dark2") +
+  # log-scale the x-axis
+  scale_x_log10() +
+  theme(legend.position = "bottom") + 
+  ggtitle("Relationship between science score and time spent studying it") +
+  labs(subtitle = "Students are grouped based on how much they enjoy science",
+       caption = "*x-axis is plotted on a log scale") +
+  xlab("Time spent studying science per week*") + 
+  ylab("Science score")
+```
+
+More time spent on studying seems to give higher scores. Most of the scores are widely distributed in the middle section, around the median for time spent. 
+
+#### Q3.Are students who enjoy science more likely to receive higher scores, given they spend an equal amount of time studying science?
+
+```{r fig.width = 4, fig.height = 4}
+pisa_au_science %>% 
+  ggplot(aes(x = science_time, y = science, colour = science_fun)) + 
+  geom_point(alpha = 0.1) + 
+  #facet_wrap(~ science_fun, ncol = 4) + 
+  geom_smooth(method = "lm", se = FALSE) +
+  scale_colour_brewer("Enjoy science", palette = "Dark2") +
+  # log-scale the x-axis
+  scale_x_log10() +
+  theme(legend.position = "bottom") + 
+  ggtitle("Relationship between science score and time spent studying it") +
+  labs(subtitle = "Students are grouped based on how much they enjoy science",
+       caption = "*x-axis is plotted on a log scale") +
+  xlab("Time spent studying science per week*") + 
+  ylab("Science score")
+```
+
+Given they spend an equal amount of time studying science, students who enjoy science more likely to receive higher scores.
+
+### Interpret model outputs
+
+fit the 2 models of student’s science scores using the pisa_au_science data. 
+
+Using the output of both fitted models:
+
+```{r}
+# Fit both models of student's science score
+mod1 <- lm(science ~ log10(science_time) + science_fun,
+  data = pisa_au_science, weights = stuweight)
+mod2 <- lm(science ~ log10(science_time) * science_fun,
+  data = pisa_au_science, weights = stuweight)
+```
+
+#### Q4.Provide an interpretation of the intercept coefficients for the first fitted model.
+
+```{r}
+tidy(mod1)
+```
+
+For model 1, the intercept coefficients implies when the student study science who with a level science enjoyment and spent to 1 minute study science per week, the science score estimated as 267.6791.
+
+#### Q5.Write down each fitted model in equation form.
+
+For model 1, $\hat{science} = 267.6791 + 83.8046*log10(\text{science_time}) + 31.7587*\text{science_fun2} + 63.1158*\text{science_fun3} + 104.3533*\text{science_fun4}$
+
+```{r}
+tidy(mod2)
+```
+
+For model 2, $\hat{science} = 463.3345 - 0.0040*log_{10}(\text{science_time}) - 151.8829*\text{science_fun2} -166.7660*\text{science_fun3} - 122.4884*\text{science_fun4} \\+ 78.6434*log_{10}(\text{science_time})*\text{science_fun2} + 98.4052*log_{10}(\text{science_time})*\text{science_fun3} \\+ 96.9308*log_{10}(\text{science_time})*\text{science_fun4}$
+
+#### Q6.Which model is better, and why?
+
+```{r}
+rbind(glance(mod1), glance(mod2)) %>%
+  select(adj.r.squared, AIC, BIC)
+```
+
+Since the model 2 have the higher adjust R-squared and lower AIC, model 2 is preferred.
+
+Note: When you looking at the BIC, model 1 have the lower BIC. And model 1 might have more interpretability than model 2. You can also choose model 1 base on the BIC and interpretability, it's a judgement between interpretability and accuracy.
+
+### Give it a go!
+
+It’s now your turn to fit two models of science score using information about the student’s gender and anxiety level:
+
+#### Q7.A model of science score against gender and test anxiety level.
+
+```{r}
+# Fit the models
+sci_lm1 <- lm(science ~ gender + anxtest, data = pisa_au_science, weights = stuweight)
+
+# Output of first fitted model
+tidy(sci_lm1)
+```
+
+```{r}
+glance(sci_lm1)
+```
+
+
+#### Q8. A model of science score with an interaction between gender and test anxiety level.
+
+```{r}
+sci_lm2 <- lm(science ~ gender * anxtest, data = pisa_au_science, weights = stuweight)
+
+# Output of second fitted model
+tidy(sci_lm2)
+```
+
+```{r}
+glance(sci_lm2)
+````
+
+
+
+
+
+
+
+
+
