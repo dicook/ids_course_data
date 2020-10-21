@@ -1,0 +1,202 @@
+---
+title: "How to create animation with gganimate in R"
+author: "Jiaying Wu"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      message = FALSE,
+                      warning = FALSE,
+                      fig.width = 6,
+                      fig.height = 4,
+                      fig.align = "center",
+                      gganimate = list(
+                        width = 600, 
+                        height = 400
+                      ))
+```
+
+This note provide a introduction to create animation in R using the `gganimate` package.
+
+### What is `gganimate`?
+
+`gganimate` is an extension of the `ggplot2` package for creating animated ggplots. It provide a range of new functionality that can be added to the plot object in order to customize how it should change with time.
+
+3 main class of functions in `gganimate`:
+
+- `transition_*()` defines how the animation should run over time. 
+
+- `view_*()` defines how the axis scales should change over time.
+
+- `shadow_*()` defines how data from previous time should be presented in the current time.
+
+### Prerequisites
+
+```{r library}
+# data wrangling
+library(dplyr)
+# static plot
+library(ggplot2)
+# animation
+library(gganimate)
+# data set
+library(gapminder)
+```
+
+### Data set
+
+```{r data}
+gapminder
+```
+
+### Step 1: Create a static plot
+
+```{r static}
+stat_scatter <- ggplot(data = gapminder, aes(x = gdpPercap, y=lifeExp, size = pop, colour = country)) +
+  geom_point(show.legend = FALSE, alpha = 0.7) +
+  # scale the color
+  scale_color_viridis_d() +
+  # scale the point size
+  scale_size(range = c(2, 12)) +
+  scale_x_log10() +
+  labs(x = "GDP per capita", y = "Life expectancy")
+stat_scatter
+```
+
+### Step 2: Define how the animation should run with `transition_*()`
+
+Transition function: `transition_states()` splits the data into subsets based on a variable in the data, the animation go through each subset over time.
+
+Label variables: `frame_time`. Gives the time that the current frame corresponds to.
+
+```{r transition}
+stat_scatter +
+  # transition function
+  transition_time(year) +
+  # label variable
+  labs(title = "Year: {frame_time}")
+```
+
+```{r state}
+filter(gapminder, year == 1952)
+```
+
+8 ore transition functions:
+
+- `transition_time()`
+
+- `transition_reveal()`
+
+- `transition_null()`
+
+- `transition_filter()`
+
+- `transition_layers()`
+
+- `transition_manual()`
+
+- `transition_components()`
+
+- `transition_events()`
+
+Use the `?` view the R Documentation.
+
+### Step 3: Define how the axis scale should change with `view_*()`
+
+`view_follow`: set the axis scale follow the in each frame.
+
+```{r view}
+stat_scatter +
+  # transition function
+  transition_time(year) +
+  # label variable
+  labs(title = "Year: {frame_time}") +
+  # view function
+  view_follow(fixed_y = TRUE)
+```
+
+5 more view functions:
+
+- `view_static()`
+
+- `view_zoom()`
+
+- `view_step_manual()`
+
+- `view_step()`
+
+- `view_step_manual()`
+
+Use the `?` view the R Documentation.
+
+
+### Step 4: Define how data from previous time should be presented in the current time with `shadow_*()`
+
+`shadow_wake()` draw a small wake after data by showing the latest frames up to the current.
+
+```{r shadow}
+stat_scatter +
+  # transition function
+  transition_time(year) +
+  # label variable
+  labs(title = "Year: {frame_time}") +
+  # view function
+  view_follow(fixed_y = TRUE) +
+  # shadow function
+  shadow_wake(wake_length = 0.1, alpha = FALSE)
+```
+
+3 more shadow functions:
+
+- `shadow_null()`
+
+- `shadow_mark()`
+
+- `shadow_trail()`
+
+Use the `?` view the R Documentation.
+
+
+### Step 5: Control how the animate being render with `animate()`
+
+- `nframes` sets the number of frames (defaults to `100`)
+
+-`fps` sets the frames per second (defaults to `10`)
+
+- `dev` sets the device used to render each frame (defaults to 'png')
+
+- renderer sets the function used to combine each frame into an animate (defaults to gifski_renderer())
+
+```{r animate}
+anim <- stat_scatter +
+  # transition function
+  transition_time(year) +
+  # label variable
+  labs(title = "Year: {frame_time}") +
+  # view function
+  view_follow(fixed_y = TRUE) +
+  # shadow function
+  shadow_wake(wake_length = 0.1, alpha = FALSE)
+
+animate(plot = anim, 
+        nframes = 80, 
+        fps = 5, 
+        renderer = gifski_renderer(loop = FALSE))
+```
+
+### Step 6: Save the animation in your local computer
+
+```{r save_animate}
+anim_save(filename = "anim_lifeExp_gdp.gif", 
+          animation = anim,
+          nframes = 80, 
+          fps = 8)
+```
+
+
+### Reference
+
+- Kassambara. 2020. gganimate: How to Create Plots with Beautiful Animation in R. Retrieved from https://www.datanovia.com/en/blog/gganimate-how-to-create-plots-with-beautiful-animation-in-r/
+
+- Thomas, L.2020. gganimate. Retrieved from https://github.com/thomasp85/gganimate
