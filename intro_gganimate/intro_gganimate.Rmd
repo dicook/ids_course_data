@@ -66,7 +66,7 @@ stat_scatter
 
 ### Step 2: Define how the animation should run with `transition_*()`
 
-Transition function: `transition_states()` splits the data into subsets based on a variable in the data, the animation go through each subset over time.
+Transition function: `transition_time()` splits the data into subsets based on a variable in the data, the animation go through each subset over time.
 
 Label variables: `frame_time`. Gives the time that the current frame corresponds to.
 

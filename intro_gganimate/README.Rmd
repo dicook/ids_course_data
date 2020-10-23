@@ -1,0 +1,28 @@
+---
+output: github_document
+---
+
+```{r setup, include = FALSE}
+# The README markdown generate by this rmd file, please edit the content within this R markdown.
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  message = FALSE,
+  fig.path = "image/",
+  fig.align = "center",
+  echo = FALSE
+)
+```
+
+# Tutorial material for gganimate
+
+- `intro_ganimate.Rmd`: Slide and R code for gganimate tutorial.
+
+- `intro_ganimate.html`: Knitted html file for gganimate tutorial.
+
+- `anim_lifeExp_gdp.gif`: Output animation file.
+
+- `intro_gganimate.Rproj`: R project for gganimate tutorial.
+
+- `README.Rmd`: Rmd file to generate this README markdown file.
+
+- `README.md`: This README mardown page. 
