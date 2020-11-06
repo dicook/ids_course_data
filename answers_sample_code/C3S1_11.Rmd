@@ -1,0 +1,185 @@
+---
+title: "Course 3 Step 1.11 - SENTIMENT ANALYSIS"
+author: "Jiaying Wu"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      message = FALSE,
+                      warning = FALSE,
+                      fig.width = 8,
+                      fig.height = 5,
+                      fig.align = "center")
+```
+
+```{r}
+# text analysis
+library(tidyverse)
+library(tidytext)
+
+# text data
+library(janeaustenr)
+
+# grid arrange
+library(gridExtra)
+library(grid)
+
+# date
+library(lubridate)
+```
+
+### Give it a go!
+
+### Jane Austen
+
+You have seen how a lexicon can be used to compute the proportion of positive and negative words in Jane Austen’s ‘Emma’.
+
+Using your choice of a lexicon (NRC, Bing, or AFINN), in RStudio compute the proportion of positive and negative words in each of Jane Austen’s books.
+
+```{r}
+# Tokenise text in Emma
+Emma <- austen_books() %>%
+  filter(book == "Emma") %>%
+  mutate(linenumber = row_number(),
+         chapter = cumsum(str_detect(text, regex("^chapter [\\divxlc]", 
+                                                 ignore_case = TRUE)))) %>%
+  unnest_tokens(word, text)
+```
+
+```{r}
+# Get bing lexicon
+bing <- get_sentiments("bing")
+
+# Inner join bing to the tidied text of Emma
+Emma_sen <- Emma %>%
+  inner_join(bing)
+```
+
+```{r}
+# Most common positive words
+p_positive <- Emma_sen %>%
+  filter(sentiment == "positive") %>%
+  count(word, sort = TRUE) %>%
+  top_n(10, n) %>%
+  ggplot(aes(x = fct_reorder(word, n), y = n)) + 
+  geom_col(fill = "lightgreen") +
+  labs(x = "", title = "Most common positive words", caption = "") +
+  coord_flip() +
+  theme(axis.title.x = element_blank())  
+
+# Most common negative words
+p_negative <- Emma_sen %>%
+  filter(sentiment == "negative") %>%
+  count(word, sort = TRUE) %>%
+  top_n(10, n) %>%
+  ggplot(aes(x = fct_reorder(word, n), y = n)) + 
+  geom_col(fill = "red") +
+  labs(x = "", title = "Most common negative words", caption = "Word sentiment based on Bing Lexicon") +
+  coord_flip() +
+  theme(axis.title.x = element_blank())  
+
+grid.arrange(p_positive, p_negative, 
+             nrow = 1, 
+             top = textGrob("Words that appear most frequently in Jane Austen's book Emma"),
+             bottom = textGrob("Frequency"))
+```
+
+
+### AFL
+
+Notice that the Melbourne Football Club, whose Twitter handle is melbournefc, was the 10th most frequent tweeter using the #AFLFinal hashtag and the only football club on this list.
+
+Using the sentiment analysis above, try to answer the following questions:
+
+#### Q1.Which tweeter is the most positive and the most negative?
+
+```{r}
+# Read the afl data from GitHub
+afl <- read_csv("https://raw.githubusercontent.com/datascienceprogram/ids_course_data/master/afl.csv")
+
+# Tokenise each tweet, join the AFINN lexicon, calculate the average sentiment score by status ID (tweet)
+afl_sentiment <- afl %>% 
+  group_by(status_id) %>% # status ID is a tweet ID
+  unnest_tokens(word, text) %>%
+  inner_join(get_sentiments("afinn")) %>%
+  summarise(sentiment = mean(value, na.rm = T)) %>% # sentiment score of each word in a tweet is averaged
+  ungroup()
+
+# Join tweet data to afl_sentiment - gives us sentiment score 
+afl_sentiment <- afl %>% 
+  select(status_id, screen_name, created_at, text) %>% 
+  left_join(afl_sentiment, by = "status_id")
+```
+
+##### The most positive tweets
+
+```{r}
+afl_sentiment %>%
+  filter(sentiment == max(sentiment, na.rm = TRUE))
+```
+
+##### The most negative tweets
+
+```{r}
+afl_sentiment %>%
+  filter(sentiment == min(sentiment, na.rm = TRUE))
+```
+
+
+#### Q2.Is there a day that spirits were higher in the tweets or when tweets were more negative?
+
+```{r}
+afl %>%
+  mutate(Day = day(created_at)) %>%
+  count(Day, sort = TRUE) %>%
+  ggplot(aes(x = as.factor(Day), y = n)) +
+  geom_col(alpha = 0.8, fill = "lightgreen") +
+  labs(x = "Day",
+       y = "Frequency",
+       title = "Total tweets containing #AFLFinal by day - Sep 3rd to 13th, 2019")
+```
+
+Day 8 is higher in the tweets.
+
+```{r}
+afl_sentiment %>% 
+  mutate(day = ymd(as.Date(created_at))) %>% 
+  group_by(day) %>%
+  summarise(mean_sentiment = mean(sentiment, na.rm = TRUE)) %>%
+  ungroup() %>%
+  ggplot(aes(x = day, y = mean_sentiment)) + 
+  geom_col(alpha = 0.8 , fill = "lightblue") + 
+  scale_x_date(date_labels = "%a %d", date_breaks = "1 day") +
+  labs(x = "Date",
+       y = "Average sentiment score",
+       title = "Sentiment score of all tweets containing #AFLFinals -  Sep 3rd to 13th, 2019",
+       caption = "Words tagged with a sentiment scored between -5 to 5 from the AFINN lexicon")
+```
+
+The tweets in September 3rd were more negative than other days.
+
+
+#### Q3.Does the tweeter aflratings have a trend in positivity or negativity?
+
+```{r}
+# Sentiment score from all tweets containing #AFLFinal between Sep 3rd to 13th by @aflratings
+afl_sentiment %>% 
+  filter(screen_name == "aflratings") %>% 
+  mutate(day = ymd(as.Date(created_at))) %>%
+  ggplot(aes(x=day, y=sentiment)) + 
+  geom_point() + 
+  geom_smooth(method = "lm", se = FALSE, color = "red") +
+  scale_y_continuous(limits = c(-5,5), breaks = seq(-5,5,1)) +
+  scale_x_date(date_labels = "%a %d", date_breaks = "1 day") +
+  labs(
+    x = "Date",
+    y = "Average sentiment score",
+    title = "Sentiment score of all tweets containing #AFLFinals by @aflratings -  Sep 3rd to 13th, 2019",
+    caption = "Words tagged with a sentiment scored between -5 to 5 from the AFINN lexicon")
+
+```
+
+The tweeter aflratings have a trend in negativity.

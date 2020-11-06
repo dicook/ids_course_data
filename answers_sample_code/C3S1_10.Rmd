@@ -1,0 +1,112 @@
+---
+title: "Course 3 Step 1.10 - TURNING TEXT INTO DATA"
+author: "Jiaying Wu"
+date: "18/10/2020"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      message = FALSE,
+                      warning = FALSE,
+                      fig.width = 5,
+                      fig.height = 4,
+                      fig.align = "center")
+```
+
+```{r}
+# Load library
+library(tidyverse)
+library(gutenbergr)
+library(tm)
+library(tidytext)
+library(plotly)
+
+# Download the 1st edition of On the Origin of Species (ID 1228)
+darwin1 <- gutenberg_download(1228)
+
+# Remove numbers from text
+darwin1$text <- removeNumbers(darwin1$text)
+
+# Tokenise text 
+darwin1_words <- darwin1 %>% 
+  unnest_tokens(word, text)
+
+# Remove stop words then count and arrange words
+darwin1_words <- anti_join(darwin1_words, stop_words, by = "word") %>%
+  count(word, sort = TRUE) %>%
+  mutate(len = str_length(word)) # Create a variable of the no. of characters in each word 
+
+# Download the 6th edition (ID 2009)
+darwin6 <- gutenberg_download(2009)
+
+# Remove numbers from text
+darwin6$text <- removeNumbers(darwin6$text)
+
+# Remove stop words then count and arrange words
+darwin6_words <- darwin6 %>% 
+  unnest_tokens(word, text) %>%
+  anti_join(stop_words, by = "word") %>%
+  count(word, sort = TRUE) %>%
+  mutate(len = str_length(word)) 
+
+# Create variable of book edition
+darwin1_words <- darwin1_words %>%
+  mutate(edition = "1")
+
+darwin6_words <- darwin6_words %>%
+  mutate(edition = "6")
+
+# Row bind both books
+darwin <- bind_rows(darwin1_words, darwin6_words)
+```
+
+### Give it a go!
+
+Generate an interactive scatter plot of the word frequency from the 6th and 1st edition of Charles Darwin’s book of evolutionary theory.
+
+```{r}
+# Word count from both editions 
+darwin <- full_join(darwin1_words, darwin6_words, by = "word") %>%
+  rename(n_ed1 = n.x, len_ed1 = len.x, n_ed6 = n.y, len_ed6 = len.y)
+
+# Scatter plot of word count frequency from the 6th and 1st edition
+p <- ggplot(darwin, aes(x=n_ed1, y=n_ed6, label=word)) + 
+  geom_abline(intercept=0, slope = 1) +
+  geom_point(alpha=0.5) +
+  xlab("1st edition") + ylab("6th edition") +
+  scale_x_log10() + scale_y_log10() + theme(aspect.ratio=1)
+
+# Interactive scatter plot plot
+ggplotly(p)
+```
+
+#### Q1.Does it look like the 6th edition was an expanded version of the first?
+
+Yes, the most of the words appear more frequently in the 6th edition.
+
+#### Q2.What word is most frequent in both editions?
+
+species.
+
+#### Q3.Which words are not in the first edition but appear in the 6th?
+
+```{r}
+darwin %>%
+  filter(is.na(n_ed1))
+```
+
+2209 words are not in the first edition but appear in the 6th, including "mivart", "prof", "cambrian"...
+
+#### Q4.Which words that are used the first edition but not in the 6th?
+
+```{r}
+darwin %>%
+  filter(is.na(n_ed6))
+```
+
+269 words are used the first edition but not in the 6th, including "deg", "experimentised", "weald"...
+
+

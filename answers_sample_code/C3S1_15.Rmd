@@ -1,0 +1,142 @@
+---
+title: "Course 3 Step 1.15 - Network data"
+author: "Jiaying Wu"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      message = FALSE,
+                      warning = FALSE,
+                      fig.width = 8,
+                      fig.height = 6,
+                      fig.align = "center")
+```
+
+### Mad Man
+
+#### Using geomnet to work with network data
+
+```{r}
+# library
+library(tidyverse)
+library(geomnet)
+
+# Load madmen (list of 2 data frames)
+data(madmen)
+```
+
+#### Apply some data pre-processing
+
+Use the fortify() function to join the vertices and edges data (madmen$vertices and madmen$edges).
+
+```{r}
+# Data step: Join the edge and node data with a fortify call
+MMnet <- fortify(as.edgedf(madmen$edges), madmen$vertices)
+```
+
+#### Positioning associated vertices
+
+```{r}
+# Create network diagram
+set.seed(5556677) # seed set to ensure that network diagram does not change on each run
+
+ggplot(data = MMnet, aes(from_id = from_id, to_id = to_id)) +
+  geom_net(aes(colour = Gender), layout.alg = "kamadakawai", # Layout algorithm
+           size = 2, labelon = TRUE, vjust = -0.6, ecolour = "grey60",
+           directed = FALSE, fontsize = 3, ealpha = 0.5) +
+  scale_colour_manual(values = c("#FF69B4", "#0099ff")) +
+  xlim(c(-0.05, 1.05)) +
+  theme_net() +
+  theme(legend.position = "bottom")
+```
+
+### American college football
+
+```{r}
+# Load football (list of 2 data frames)
+data(football)
+```
+
+#### Join the vertices and edges data frame, and create a variable
+
+```{r}
+# Join the edge and node data with a fortify call
+ftnet <- fortify(as.edgedf(football$edges), football$vertices)
+
+# Label independent schools
+ftnet$schools <- ifelse(ftnet$value == "Independents", ftnet$from, "")
+
+# Create network diagram
+set.seed(1)
+ggplot(data = ftnet, aes(from_id = from_id, to_id = to_id)) +
+  geom_net(aes(colour = value,
+               group = value,
+               linetype = factor(1-same.conf),
+               label = schools),
+           linewidth = 0.5,
+           size = 4,
+           fontsize = 3,
+           vjust = -0.75, 
+           alpha = 0.5,
+           layout.alg = 'fruchtermanreingold') +
+  scale_linetype_discrete(name = "Same Conference", labels = c("Yes", "No", "NA")) +
+  theme_net() +
+  theme(legend.position = "bottom", legend.box = "vertical") +
+  guides(colour = guide_legend(order = 1),
+         linetype= guide_legend(order = 2)) +
+  scale_colour_brewer("Conference", palette = "Paired")
+```
+
+### Give it a go!
+
+Further develop your skills and knowledge of working with data by creating network diagrams based on characters in Harry Potter.
+
+In the network diagram, the Harry Potter characters will be the vertices and the edges occur if one character provides emotional support to the other at some point in the book.
+
+#### Load the data
+
+```{r}
+# URL of raw text of HP characters
+hp.chars_URL <- "https://raw.githubusercontent.com/datascienceprogram/ids_course_data/master/hp.chars.csv"
+
+# Read HP characters data
+hp.chars <- read_csv(hp.chars_URL)
+
+# URL of raw text of HP edges
+hp.edges_URL <- "https://raw.githubusercontent.com/datascienceprogram/ids_course_data/master/hp.edges.csv"
+
+# Read HP edges data
+hp.edges <- read_csv(hp.edges_URL)
+
+# Convert to data frame object
+hp.chars <- as.data.frame(hp.chars)
+hp.edges <- as.data.frame(hp.edges)
+```
+
+#### Determine the edges and vertices
+
+Create a facetted network diagram of the Harry Potter characters.
+
+```{r fig.width = 9,fig.height = 7}
+# Join the edge and node data with a fortify call
+hp.all <- fortify(as.edgedf(hp.edges), hp.chars, group = "book") # group by HP book for facetting
+
+# Create network diagram facetted by book
+set.seed(12345)
+ggplot(data = hp.all, aes(from_id = from, to_id = to_id)) + 
+  geom_net(fiteach=T, directed = T, size = 2, linewidth = .5, 
+           ealpha = .5, labelon = T, fontsize = 2, repel = T, 
+           labelcolour = "black", arrowsize = .5, singletons = FALSE,
+           aes(colour = house, group = house, shape = gender)) + 
+  scale_colour_manual(values = c("#941B08","#F1F31C", 
+                                 "#071A80", "#154C07")) + 
+  facet_wrap(~book, labeller = "label_both", ncol = 3) + 
+  theme_net() + 
+  theme(panel.background = element_rect(colour = 'black'), legend.position = "bottom")
+```
+
+

@@ -1,0 +1,261 @@
+---
+title: "Course 3 Step 1.18 - Your turn"
+author: "Jiaying Wu"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      message = FALSE,
+                      warning = FALSE,
+                      fig.width = 6, 
+                      fig.height = 4,
+                      fig.align = "center")
+```
+
+### Make a start with the daily exchange rate
+
+```{r}
+# library
+library(tidyverse)
+library(gridExtra)
+
+# Read exchange rate data
+ru <- read_csv("https://raw.githubusercontent.com/datascienceprogram/ids_course_data/master/rates_new.csv")
+
+# Arrange data by date
+ru <- ru %>% 
+  arrange(date)
+
+# Look at the data
+head(ru, n = 10)
+```
+
+```{r}
+names(ru)
+```
+
+#### 1.How can you tell that the currencies in the data are quoted against the USD?
+
+```{r}
+ru %>% 
+  select(date, USD, AUD, EUR, CNY, JPY, GBP, CHF) %>%
+  head(n = 10)
+```
+
+#### 2.What is the first and last recorded exchange rate in this data set?
+
+```{r}
+# First and last recording of exchange rates
+ru %>%
+  summarise(firstdate = first(date),
+            lastdate = last(date))
+```
+
+#### 3.Which exchange rate appreciated during this period?
+
+```{r fig.width = 9, fig.height = 6,}
+# Line plot of various exchange rates
+ru %>% 
+  select(date, AUD, EUR, CNY, JPY, GBP, CHF) %>%
+  gather("currency", "rate", 2:7) %>%
+  ggplot(aes(x = date, y = rate)) +
+  geom_line() +
+  labs(x = "Date", 
+       y = "Currency rate to USD",
+       title = "Daily exchange rate: June 20 - July 13, 2017") +
+  facet_wrap(~ currency, scales = "free")
+```
+
+The Japanese Yen.
+
+#### 4.When the Swiss franc was at its peak and trough, approximately how many Swiss francs could be exchanged for 1 United States dollar?
+
+```{r}
+ru %>% 
+  select(date, USD, CHF) %>%
+  filter(CHF == max(CHF))
+```
+
+```{r}
+ru %>% 
+  select(date, USD, CHF) %>%
+  filter(CHF == min(CHF))
+```
+
+Peak: 0.975USD, trough: 0.955USD.
+
+### Pre-processing data
+
+Create a data frame containing exchanges rate with a CV greater than 0.0027.
+
+```{r}
+# Function of the CV
+cv <- function(x) sd(x)/mean(x)
+
+# Only analyse exchange rates that have moved substantially over this time
+s <- ru %>% 
+  select(-date) %>% # dates dropped
+  summarise_all(funs(cv)) %>% # compute CV of each exchange rate
+  gather(curr, cv) %>%
+  filter(cv > 0.0027)
+
+# Exchange rates with CV greater than 0.0027
+ru_sub <- ru %>% select(s$curr)
+```
+
+### Remove non-exchange rates
+
+```{r}
+# Remove non-exchange rates
+ru_sub <- ru_sub %>% 
+  select(-ALL, -XAG, -XDR, -XPT)
+```
+
+#### 5.Google these ‘exchange rates’: ALL, XAG, XDR, XPT. What are they?
+
+Albanian Lek, Silver, IMF, Platinum. Albanian lek is used inside the country, it cannot be exchanged to other currencies. Silver, IMF and Platinum are not country currencies.
+
+### Standardise the exchange rates
+
+```{r}
+# Function to standardise exchange rates
+scale01 <- function(x) (x-mean(x))/sd(x)
+
+# Apply standardisation function to each exchange rate
+ru_sub <-  ru_sub %>%
+  mutate_all(funs(scale01)) 
+
+# Join date variable from ru data frame into ru_sub
+ru_sub_dt <- ru_sub %>% 
+  mutate(date = ru$date)
+```
+
+Generate line plots of some standardised and non-standardised exchange rates.
+
+```{r fig.width = 9,fig.height = 4}
+# Line plot: standardised exchange rates
+line_plot_std_exch_rate <- ru_sub_dt %>% 
+  select(date, AUD, EUR, CNY, JPY, GBP, CHF) %>%
+  gather("currency", "rate", 2:7) %>%
+  ggplot(aes(x = date, y = rate, colour = currency)) +
+  geom_line() +
+  labs(x = "Date", 
+       y = "Standardised currency rate to USD",
+       title = "Standardised exchange rate")
+
+# Line plot: exchange rates
+line_plot_exch_rate <- ru %>% 
+  select(date, AUD, EUR, CNY, JPY, GBP, CHF) %>%
+  gather("currency", "rate", 2:7) %>%
+  ggplot(aes(x = date, y = rate, colour = currency)) +
+  geom_line() +
+  labs(x = "Date", 
+       y = "Currency rate to USD",
+       title = "Exchange rate")
+
+# Compare standardised and non-standard exchange rate
+grid.arrange(line_plot_std_exch_rate, line_plot_exch_rate, ncol = 2)
+```
+
+#### Distance between all pairs of exchange rates
+
+Notice that some exchange rates move in a similar fashion, while others move in the opposite direction. If there is a large distance between standardised exchange rates, then this indicates that they do not move in a similar way. Exchange rates that move in a similar way should have little distance in their standardised figures.
+
+```{r fig.width = 9,fig.height = 4}
+# Line plot: JPY's Movement is dissimilar to EUR and GBP
+line_plot_jpy <- ru_sub_dt %>% 
+  select(date, EUR, JPY, GBP) %>%
+  gather("currency", "rate", 2:4) %>%
+  ggplot(aes(x = date, y = rate, colour = currency)) +
+  geom_line() +
+  labs(x = "Date", 
+       y = "Standardised currency rate to USD",
+       title = "JPY's Movement is dissimilar to EUR and GBP") +
+  theme(legend.position = "bottom")
+
+# bar plot: JPY is future from EUR and GBP
+bar_plot_jpy <- ru_sub_dt %>%
+  select(date, EUR, JPY, GBP) %>%
+  mutate("|EUR - GBP|" = abs(EUR - GBP),
+         "|JPY - EUR|" = abs(JPY - EUR),
+         "|JPY - GBP|" = abs(JPY - GBP)) %>%
+  gather("currency", "rate", 5:7) %>%
+  ggplot(aes(x = date, y = rate, fill = currency)) +
+  geom_col(position = "dodge", alpha = 0.7) +
+  labs(x = "Date", 
+       y = "Absolute difference",
+       title = "JPY is future from EUR and GBP") +
+  theme(legend.position = "bottom")
+
+grid.arrange(line_plot_jpy, bar_plot_jpy, ncol = 2)
+```
+
+```{r}
+# Transpose the data is that the dates are in the columns and exchange rates in rows
+
+# t() function transposes the data, i.e., swap the rows with the columns
+ru_sub_t <- t(ru_sub)
+
+# Convert transposed data into a data frame
+ru_sub_t <- data.frame(ru_sub_t)
+```
+
+Generate the distance matrix of all pairs of standardised exchange rates.
+
+```{r}
+# Distance matrix of standardised exchange rates
+d <- as.matrix(dist(ru_sub_t, diag = TRUE, upper = TRUE))
+
+# Give distance matrix col and row names
+colnames(d) <- as.factor(colnames(ru_sub))
+rownames(d) <- as.factor(colnames(ru_sub))
+
+# Quartiles of the Euclidean distances in the distance matrix
+quantile(d, probs = c(0, 0.25, 0.5, 0.75, 1))
+```
+
+It’s worth noting that half of the Euclidean distances are above or below 6.39, with the top 25 percent of Euclidean distances greater than 7.8 and the bottom 25 percent under 4.35. This indicates that closely connected exchange rates have a Euclidean distance approximately less than 4.
+
+```{r fig.width = 6,fig.height = 6}
+d %>%
+  as_tibble() %>%
+  gather(key  = "Currency", value = "Euclidean distance") %>%
+  ggplot(aes(x = `Euclidean distance`)) +
+  geom_histogram(binwidth = 0.32, alpha = 0.8) +
+  geom_vline(xintercept = quantile(d, probs = c(0.25, 0.5, 0.75)), color = "red", alpha = 0.5, size = 1)
+```
+
+### Make the network
+
+Generate an edge list of exchange rates connected by similarity in movements, i.e., with a Euclidean distance less than 3.
+
+```{r}
+# Create another data frame  
+d_zero <- d
+
+# Filter for only standardised exchange rates w. Euclidean dist. less than 3
+d_zero_tbl <- d_zero %>% 
+  as_tibble() %>%
+  mutate(curr1 = rownames(d_zero)) %>% # create variable with each currency
+  gather(curr2, dst, -curr1) %>% # edge list connecting each currency + attribute of euclidean dist.
+  filter(dst < 3) %>% # filter the edge list to keep only closely connected exch. rates 
+  filter(curr1 != curr2) # remove exch. rates connected to themselves
+```
+
+Using the Kamada–Kawai layout algorithm to build a network diagram of closely related exchange rates. It’s worth noting that there are three clusters.
+
+```{r}
+# Make network diagram
+library(geomnet)
+set.seed(10052016) # set a seed for reproducibility
+ggplot(data = d_zero_tbl, aes(from_id = curr1, to_id = curr2)) +
+  geom_net(layout.alg = "kamadakawai",
+    size = 1, labelon = TRUE, vjust = -0.6, ecolour = "grey60",
+    directed =FALSE, fontsize = 2, ealpha = 0.5) +
+    theme_net() +
+    theme(legend.position = "bottom")
+```
+
+
+

@@ -1,0 +1,269 @@
+---
+title: "Course 3 Step 1.13 - Your turn"
+author: "Jiaying Wu"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      message = FALSE,
+                      warning = FALSE,
+                      fig.width = 8,
+                      fig.height = 5,
+                      fig.align = "center")
+```
+
+```{r}
+# text analysis
+library(tidyverse)
+library(tidytext)
+```
+
+### The Simpsons
+
+Now, it’s your turn to apply what you’ve learned to explore characters from the popular animated TV series, The Simpsons, their dialogue and sentiment, and more.
+
+```{r}
+# URL of simpsons_script_lines data
+path_simpsons_script_lines <- "https://raw.githubusercontent.com/datascienceprogram/ids_course_data/master/simpsons_script_lines.csv"
+
+# Read simpsons_script_lines
+scripts <- read_csv(path_simpsons_script_lines)
+
+# URL of simpsons_characters data
+path_simpsons_characters <- "https://raw.githubusercontent.com/datascienceprogram/ids_course_data/master/simpsons_characters.csv"
+
+# Read simpsons_characters
+chs <- read_csv(path_simpsons_characters)
+```
+
+Left join chs to scripts, then sort the characters based on their total number of dialogue.
+
+```{r}
+# Left join simpsons character data to the script data
+sc <- left_join(scripts, chs, by = c("character_id" = "id"))
+
+# Count the total number of dialogues from each character and arrange
+sc %>% 
+  count(name, sort = TRUE)
+```
+
+#### Explore variables
+
+```{r}
+# Select 'text' variables and look at an extract of the data
+sc %>%
+  select(raw_text, raw_character_text, raw_location_text, spoken_words, normalized_text, name, normalized_name) %>%
+  head(n = 10)
+```
+
+#### Tokenise the variable
+
+```{r}
+# Tokenise the clean dialogue variable and stored the tokenised text in word
+sc <- sc %>%
+  unnest_tokens(word, normalized_text)
+```
+
+The following bar chart describes the most commonly used words in the Simpsons.
+
+```{r}
+sc %>%
+  count(word, sort = TRUE) %>%
+  top_n(10, n) %>%
+  filter(!is.na(word)) %>%
+  ggplot(aes(x = fct_reorder(word, n), y = n)) + 
+  geom_col() +
+  coord_flip() +
+  labs(y = "Count", title = "The most commonly used words are stop words") +
+  theme(axis.title.y = element_blank())
+```
+
+##### 1.What type of words are these?
+
+Stop words
+
+##### 2.Do these words provide information about the context of the dialogue?
+
+No they do not.
+
+
+#### Stop words
+
+Use the anti_join() function as well as the stop_words data frame from the tidytext package to remove stop words.
+
+Once you have, count the number of times each word was used and arrange the words from most to least frequent.
+
+```{r}
+# Remove stop words and then count and arrange words
+sc_words <- anti_join(sc, stop_words, by = "word") %>%
+  count(word, sort = TRUE)
+
+# Look at sc_words
+head(sc_words, n = 10)
+```
+
+Notice that the most frequently used word is not a word but actually a missing value in the data. You will need to filter out the missing value from sc_words. Once you have, your final bar chart of the most frequently used words should appear like the following
+
+```{r}
+# Filter our the missing value
+sc_words <- sc_words %>%
+  filter(!is.na(word))
+
+# Bar chart of most frequently used words
+sc_words %>%
+  top_n(20) %>%
+  ggplot(aes(x = fct_reorder(word, n), y = n)) +
+  geom_col(alpha = 0.8) +
+  labs(x = '', y = 'Count', 
+       title = 'Most frequently spoken words in The Simpsons exc. stop words') +
+  coord_flip()
+```
+
+#### Sentiment analysis
+
+Join the AFINN lexicon, which scores negative and positive word on a scale between -5 to 5, to sc_words.
+
+```{r}
+# Join AFINN lexicon to sc_word
+sc_word_scores <- sc_words %>% 
+  inner_join(get_sentiments("afinn"), by = "word")
+```
+
+A glimpse of sc_word_scores shows that these sentiment scores are stored in the variable value.
+
+```{r}
+# Look at sc_word_scores
+glimpse(sc_word_scores)
+```
+
+#### Narrow your focus
+
+Creates a data frame of characters with at least 1500 lines of dialogues.
+
+```{r fig.height = 7}
+# Data of the main characters based on number of dialogue
+main_char <- sc %>% 
+  count(name, sort = TRUE) %>%
+  filter(!is.na(name)) %>%
+  filter(n >= 1500)
+
+# Bar plot of sentiment of words spoken by each character
+sc %>%
+  anti_join(stop_words, by = "word") %>% # remove stop words
+  filter(!is.na(word)) %>% # remove missing values
+  inner_join(get_sentiments("afinn"), by = "word") %>%
+  filter(name %in% main_char$name) %>% # this is like an anti_join()
+  group_by(name) %>% 
+  # average sentiment score based on words spoken (duplicates are not counted as one word)
+  summarise(m = mean(value)) %>% 
+  ungroup() %>%
+  ggplot(aes(x = fct_reorder(name, m), y = m)) +
+  geom_col(alpha = 0.8) +
+  coord_flip() +
+  labs(y = "Average sentiment score",
+       x = "Characters",
+       title = "Sentiment of words spoken by each character")
+```
+
+#### Bart Simpson
+
+Explore how the sentiment of his words has changed over his life.
+
+```{r}
+# Filter names containing Bart
+sc %>% 
+  count(name, sort = TRUE) %>%
+  filter(grepl("Bart", name)) %>% 
+  print(n = 50)
+```
+
+```{r}
+# Vector of Bart at various periods
+bart_names <- c("Bart Simpson", "Baby Bart", 
+                "1-Year-Old Bart", "2-Year-Old Bart", 
+                "5-Year-Old Bart", "80-Year-Old Bart")
+
+# Dialogue from Bart of various ages
+bart <- sc %>% 
+  filter(name %in% bart_names)
+
+# Tokenise dialogue from Bart of various ages
+bart_word <- bart %>%
+  filter(!word %in% stop_words$word) %>%
+  count(name, word) %>%
+  ungroup() %>%
+  filter(!is.na(word))
+
+# Join AFINN lexicon to bart_word
+bart_s <- bart_word %>% 
+  inner_join(get_sentiments("afinn"), by = "word")
+
+# Remaining Barts
+bart_s %>%
+  distinct(name)
+```
+
+Notice that once the AFINN lexicon has been inner joined to bart_word, the ‘Barts’ of some periods have been removed, leaving only 1-year-old Bart, 5-year-old Bart and regular Bart Simpson remaining.
+
+##### 1.Why do you think this has happened?
+
+This is possibly because the other Barts had little dialogue.
+
+##### 2.What problems could arise when analysing the words used by 1-year-old Bart and 5-year-old Bart?
+
+The words spoken may not be exactly as they are (baby/child language) in the dictionary, and so AFINN may overlook those words and not assign a score to them.
+
+
+#### Plotting Bart’s sentiment score
+
+Generate a bar plot of Bart’s sentiment score at various ages. 
+
+```{r}
+# Bar plot of sentiment score of Bart's dialogue at various ages
+bart_s %>% 
+  group_by(name) %>% 
+  summarise(m = mean(value)) %>% 
+  ungroup() %>%
+  ggplot(aes(x = name, y = m)) +
+  geom_col(alpha = 0.7) +
+  labs(x = "",
+       y = "Average sentiment score",
+       title = "Sentiment of words used by Bart",
+       subtitle = "1 year one Bart's vocabulary would have been limited...") +
+  coord_flip()
+```
+
+#### Angry and Joyful characters
+
+Determine which characters are most ‘angry’ and ‘joyful’ based on the words they have spoken.
+
+```{r fig.height = 7}
+# Data of main char's words spoken with freq. and nrc sentiment
+sc_senti_nrc <- sc %>%
+  anti_join(stop_words, by = "word") %>% # remove stop words
+  filter(!is.na(word)) %>% # remove missing values
+  group_by(name, word) %>%
+  summarise(n = n()) %>% 
+  ungroup() %>%
+  inner_join(get_sentiments("nrc"), by = "word") %>%
+  filter(name %in% main_char$name) 
+
+# Bar plot of angry and joyful sentiment
+sc_senti_nrc %>% 
+  group_by(name) %>% 
+  summarise(angry = 100*sum(n[sentiment == "anger"]/sum(n)),
+            joyful = 100*sum(n[sentiment == "joy"]/sum(n))) %>%
+  ungroup() %>%
+  mutate(name = fct_reorder(name, angry)) %>%
+  gather("sentiment", "score", 2:3) %>%
+  ggplot(aes(x = name, y = score, fill = sentiment)) +
+  geom_bar(stat = "identity", alpha = 0.6, position = position_dodge(width = 0.4)) +
+  coord_flip() +
+  labs(title = "Sentiment of main characters based on angry and joyful words", 
+       y = "% of angry or joyful words spoken",
+       x = "Character")
+```
+
+
+

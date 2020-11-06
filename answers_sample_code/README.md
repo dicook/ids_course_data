@@ -91,3 +91,17 @@ Sample Answer Code for Data Science: Data-Driven Decision Making
 -   `C2S4_11.Rmd`: Sample answer code for Course 2 Step 4.11: `CLASSIFICATION TREES`
 
 -   `C2S4_13.Rmd`: Sample answer code for Course 2 Step 4.13: `YOUR TURN`
+
+### Course 3: FORMATS, ETHICS, AND STORYTELLING
+
+#### Week 1: UNSTRUCTURED DATA AND NETWORK ANALYSIS
+
+-   `C3S1_10.Rmd`: Sample answer code for Course 3 Step 1.10: `TURNING TEXT INTO DATA`
+
+-   `C3S1_11.Rmd`: Sample answer code for Course 3 Step 1.11: `SENTIMENT ANALYSIS`
+
+-   `C3S1_13.Rmd`: Sample answer code for Course 3 Step 1.13: `YOUR TURN`
+
+-   `C3S1_15.Rmd`: Sample answer code for Course 3 Step 1.15: `NETWORK DATA`
+
+-   `C3S1_18.Rmd`: Sample answer code for Course 3 Step 1.18: `YOUR TURN`
